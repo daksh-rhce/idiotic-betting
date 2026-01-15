@@ -55,7 +55,57 @@
                 <div class="mode-card" onclick="selectMode('online')">
                     <h2>🌐 Online Mode</h2>
                     <p>Play against other players</p>
+                    <small style="display: block; margin-top: 10px; opacity: 0.7;">Requires server deployment</small>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby Screen -->
+    <div id="lobby-screen" class="screen">
+        <div class="lobby-container">
+            <h1>🎰 Game Lobby</h1>
+            <div class="lobby-tabs">
+                <button class="tab-btn active" onclick="showCreateLobby()">Create Lobby</button>
+                <button class="tab-btn" onclick="showJoinLobby()">Join Lobby</button>
+                <button class="tab-btn" onclick="showFriendsLobby()">Friends</button>
+            </div>
+            
+            <!-- Create Lobby -->
+            <div id="create-lobby-form" class="lobby-form">
+                <input type="text" id="lobby-name-input" placeholder="Lobby Name" maxlength="20">
+                <input type="password" id="lobby-password-input" placeholder="Password (optional)">
+                <button class="btn btn-large" onclick="createLobby()">Create Lobby</button>
+                <div id="create-lobby-error" class="error-message"></div>
+            </div>
+            
+            <!-- Join Lobby -->
+            <div id="join-lobby-form" class="lobby-form" style="display: none;">
+                <div id="available-lobbies" class="lobbies-list"></div>
+                <input type="text" id="join-lobby-name" placeholder="Lobby Name" style="margin-top: 15px;">
+                <input type="password" id="join-lobby-password" placeholder="Password">
+                <button class="btn btn-large" onclick="joinLobby()">Join Lobby</button>
+                <div id="join-lobby-error" class="error-message"></div>
+            </div>
+            
+            <!-- Friends Lobby -->
+            <div id="friends-lobby-form" class="lobby-form" style="display: none;">
+                <h3>Friends</h3>
+                <div id="friends-list" class="friends-list"></div>
+                <div style="margin-top: 20px;">
+                    <input type="text" id="friend-username-input" placeholder="Username to add">
+                    <button class="btn btn-large" onclick="sendFriendRequest()">Send Request</button>
+                </div>
+                <div id="friend-requests" class="friend-requests"></div>
+                <div id="friends-error" class="error-message"></div>
+            </div>
+            
+            <!-- Current Lobby -->
+            <div id="current-lobby" class="current-lobby" style="display: none;">
+                <h3>Lobby: <span id="current-lobby-name"></span></h3>
+                <div id="lobby-players" class="lobby-players"></div>
+                <button class="btn btn-large" onclick="startLobbyGame()">Start Game</button>
+                <button class="btn btn-secondary" onclick="leaveLobby()">Leave Lobby</button>
             </div>
         </div>
     </div>
@@ -192,6 +242,7 @@
 
     <script src="bot-names.js"></script>
     <script src="auth.js"></script>
+    <script src="lobby.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

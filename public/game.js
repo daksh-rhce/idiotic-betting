@@ -112,11 +112,18 @@ function initSoloGame() {
 
 // Initialize Online Game
 function initOnlineGame() {
+    // Check if deployed (has GitHub repo or production URL)
+    const isDeployed = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
+    if (!isDeployed) {
+        alert('Online mode requires the game to be deployed to a server.\n\nPlease deploy to GitHub and a hosting service (Railway, Render, etc.) first.\n\nSee DEPLOY_NOW.md for instructions.');
+        showScreen('mode-screen');
+        return;
+    }
+    
     gameState.gameMode = 'online';
-    // TODO: Connect to WebSocket server
-    addLog("Online mode - Connecting to server...");
-    // For now, fall back to solo
-    initSoloGame();
+    showScreen('lobby-screen');
+    loadLobbyScreen();
 }
 
 // Initialize Decks
@@ -295,6 +302,7 @@ function processNextBidder() {
         });
         
         if (activeBidders.length === 0) {
+            // No one else can bid - highest bidder auto-buys
             endAuction();
             return;
         }
@@ -307,10 +315,16 @@ function processNextBidder() {
     const currentBidder = gameState.biddingOrder[gameState.currentBidderIndex];
     const player = gameState.players.find(p => p.id === currentBidder.id);
     
-    if (!player || player.money < gameState.currentBid + 50) {
+    if (!player) {
+        gameState.currentBidderIndex++;
+        setTimeout(() => processNextBidder(), 500);
+        return;
+    }
+    
+    if (player.money < gameState.currentBid + 50) {
         gameState.biddingHistory.push({ playerId: player.id, playerName: player.name, action: 'pass', reason: 'insufficient funds' });
         gameState.currentBidderIndex++;
-        setTimeout(() => processNextBidder(), 1000);
+        setTimeout(() => processNextBidder(), 800);
         return;
     }
     
@@ -320,44 +334,34 @@ function processNextBidder() {
         document.getElementById('pass-btn').disabled = false;
         addLog(`Your turn to bid! Current bid: ${gameState.currentBid}`);
     } else {
-        // AI player's turn
+        // NPC player's turn - always acts
         aiBid(player);
     }
 }
 
-// Bot AI with scenario-based decision making
+// NPC Bot with fixed commands - always bids or plays chaos card to keep game moving
 function aiBid(aiPlayer) {
     const minBid = gameState.currentBid + 50;
     const needsProperty = aiPlayer.tasks.some(task => task.propertyName === gameState.currentAuction.name);
-    const propertyValue = gameState.currentAuction.value;
     const canAfford = aiPlayer.money >= minBid;
-    const moneyRatio = aiPlayer.money / 500; // Starting money
     
-    // SCENARIO 1: Bot needs this property for a task
+    // NPC DECISION: Always try to keep game moving
+    // Priority 1: If needs property and can afford, BID
     if (needsProperty && canAfford) {
-        // Calculate max bid (up to 150% of property value or 80% of money)
-        const maxBid = Math.min(
-            Math.floor(propertyValue * 1.5),
-            Math.floor(aiPlayer.money * 0.8)
-        );
-        if (maxBid >= minBid) {
-            const bid = Math.max(minBid, Math.min(maxBid, gameState.currentBid + 50));
-            placeBidForPlayer(aiPlayer.id, bid);
-            return;
-        }
+        const bid = Math.min(minBid, Math.floor(aiPlayer.money * 0.7));
+        placeBidForPlayer(aiPlayer.id, bid);
+        return;
     }
     
-    // SCENARIO 2: Bot doesn't have enough money - try to use chaos card
-    if (!canAfford && aiPlayer.chaosCards.length > 0) {
+    // Priority 2: If needs property but can't afford, use chaos card to get money
+    if (needsProperty && !canAfford && aiPlayer.chaosCards.length > 0) {
         const moneyCard = aiPlayer.chaosCards.find(card => 
             card.name === "Accounting Error (In Your Favor)" || 
             card.name === "We Found a Loophole"
         );
-        if (moneyCard && needsProperty) {
-            // Use chaos card to get money
+        if (moneyCard) {
             const cardIndex = aiPlayer.chaosCards.indexOf(moneyCard);
             executeChaosCardForAI(aiPlayer, moneyCard, cardIndex, null);
-            // After getting money, try bidding again
             setTimeout(() => {
                 if (aiPlayer.money >= minBid) {
                     const bid = Math.min(minBid, Math.floor(aiPlayer.money * 0.7));
@@ -365,51 +369,44 @@ function aiBid(aiPlayer) {
                 } else {
                     passBidForPlayer(aiPlayer.id);
                 }
-            }, 500);
+            }, 800);
             return;
         }
     }
     
-    // SCENARIO 3: Block opponent if they're winning and bot has good money
-    const humanPlayer = gameState.players[gameState.playerId];
-    const isHumanWinning = gameState.highestBidder === gameState.playerId;
-    if (isHumanWinning && moneyRatio > 0.6 && canAfford && !needsProperty) {
-        // 40% chance to block
-        if (Math.random() < 0.4) {
-            const bid = Math.min(minBid + 50, Math.floor(aiPlayer.money * 0.5));
-            placeBidForPlayer(aiPlayer.id, bid);
-            return;
-        }
-    }
-    
-    // SCENARIO 4: Good deal - property value is high and bid is low
-    if (propertyValue > 300 && gameState.currentBid < propertyValue * 0.6 && canAfford) {
-        // 50% chance to bid on good deals
-        if (Math.random() < 0.5) {
-            const bid = Math.min(minBid, Math.floor(propertyValue * 0.7));
-            placeBidForPlayer(aiPlayer.id, bid);
-            return;
-        }
-    }
-    
-    // SCENARIO 5: Low money - pass
-    if (moneyRatio < 0.3 && !needsProperty) {
-        passBidForPlayer(aiPlayer.id);
-        return;
-    }
-    
-    // SCENARIO 6: Default - pass if can't afford or don't need
-    if (!canAfford || !needsProperty) {
-        passBidForPlayer(aiPlayer.id);
-    } else {
-        // Can afford and might want it - 30% chance
-        if (Math.random() < 0.3) {
+    // Priority 3: If can afford, 70% chance to bid (keep game moving)
+    if (canAfford) {
+        if (Math.random() < 0.7) {
             const bid = Math.min(minBid, Math.floor(aiPlayer.money * 0.6));
             placeBidForPlayer(aiPlayer.id, bid);
-        } else {
-            passBidForPlayer(aiPlayer.id);
+            return;
         }
     }
+    
+    // Priority 4: If can't afford and has chaos cards, use one
+    if (!canAfford && aiPlayer.chaosCards.length > 0) {
+        const usableCard = aiPlayer.chaosCards.find(card => 
+            card.name === "Accounting Error (In Your Favor)" || 
+            card.name === "We Found a Loophole" ||
+            card.name === "Fake Bidder"
+        );
+        if (usableCard) {
+            const cardIndex = aiPlayer.chaosCards.indexOf(usableCard);
+            executeChaosCardForAI(aiPlayer, usableCard, cardIndex, null);
+            setTimeout(() => {
+                if (aiPlayer.money >= minBid && gameState.currentAuction) {
+                    const bid = Math.min(minBid, Math.floor(aiPlayer.money * 0.7));
+                    placeBidForPlayer(aiPlayer.id, bid);
+                } else {
+                    passBidForPlayer(aiPlayer.id);
+                }
+            }, 800);
+            return;
+        }
+    }
+    
+    // Last resort: Pass
+    passBidForPlayer(aiPlayer.id);
 }
 
 function placeBid() {
@@ -447,17 +444,19 @@ function placeBidForPlayer(playerId, bidAmount) {
         return;
     }
     
-    gameState.currentBid = bidAmount;
+    // Update bid amount (must be at least 50 more)
+    const actualBid = Math.max(gameState.currentBid + 50, bidAmount);
+    gameState.currentBid = actualBid;
     gameState.highestBidder = playerId;
-    gameState.biddingHistory.push({ playerId, playerName: player.name, action: 'bid', amount: bidAmount });
+    gameState.biddingHistory.push({ playerId, playerName: player.name, action: 'bid', amount: actualBid });
     
-    addLog(`${player.name} bids ${bidAmount}!`);
+    addLog(`💰 ${player.name} bids ${actualBid}!`);
     
     // If tie, first to bid that amount wins
     gameState.currentBidderIndex++;
     updateDisplay();
     
-    setTimeout(() => processNextBidder(), 1500);
+    setTimeout(() => processNextBidder(), 1200);
 }
 
 function passBid() {
