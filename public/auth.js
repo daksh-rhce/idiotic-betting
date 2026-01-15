@@ -165,6 +165,14 @@ function selectMode(mode) {
     }
 }
 
+// Make functions globally available
+window.setPlayerName = setPlayerName;
+window.selectMode = selectMode;
+window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;
+window.showLogin = showLogin;
+window.showRegister = showRegister;
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     if (!checkAuth()) {

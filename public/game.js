@@ -220,7 +220,10 @@ function updateTaskSelectionDisplay() {
 }
 
 function confirmTaskSelection() {
-    if (gameState.selectedTasks.length !== 5) return;
+    if (gameState.selectedTasks.length !== 5) {
+        addLog('Please select exactly 5 task cards!');
+        return;
+    }
     
     // Assign selected tasks to player
     const player = gameState.players[0];
@@ -1127,22 +1130,109 @@ function endGame() {
     updateDisplay();
 }
 
+// Sell property function
+function sellProperty() {
+    const player = gameState.players[gameState.playerId];
+    
+    if (player.properties.length === 0) {
+        addLog("You have no properties to sell!");
+        return;
+    }
+    
+    showPropertySelection(true);
+}
+
+function showPropertySelection(isSelling = false) {
+    const modal = document.getElementById('card-modal');
+    const modalBody = document.getElementById('modal-body');
+    const player = gameState.players[gameState.playerId];
+    
+    modalBody.innerHTML = `<h3 style="color: #FFD700; margin-bottom: 20px;">${isSelling ? 'Select Property to Sell' : 'Your Properties'}:</h3><div class="cards-grid">`;
+    
+    player.properties.forEach((property, index) => {
+        const sellValue = Math.floor(property.value / 2);
+        modalBody.innerHTML += `
+            <div class="card property-card-owned" onclick="sellPropertyAt(${index})" style="cursor: pointer;">
+                <div class="property-name">${property.name}</div>
+                <div class="property-value">Value: ${property.value}</div>
+                ${isSelling ? `<div style="margin-top: 10px; color: #51cf66; font-weight: bold;">Sell for: ${sellValue}</div>` : ''}
+                <div class="property-effect">${property.effect}</div>
+            </div>
+        `;
+    });
+    
+    modalBody.innerHTML += '</div>';
+    modal.style.display = 'block';
+}
+
+function sellPropertyAt(index) {
+    const player = gameState.players[gameState.playerId];
+    const property = player.properties[index];
+    const sellValue = Math.floor(property.value / 2);
+    
+    player.money += sellValue;
+    player.properties.splice(index, 1);
+    
+    // Add property to bottom of deck
+    gameState.propertyDeck.unshift(property);
+    
+    addLog(`💰 You sold ${property.name} for ${sellValue}!`);
+    
+    document.getElementById('card-modal').style.display = 'none';
+    updateDisplay();
+}
+
 // Global functions for onclick handlers
 window.selectChaosCard = selectChaosCard;
 window.submitBid = submitBid;
 window.showScreen = showScreen;
+window.sellPropertyAt = sellPropertyAt;
+window.confirmTaskSelection = confirmTaskSelection;
+window.toggleTaskSelection = toggleTaskSelection;
+window.setPlayerName = setPlayerName;
+window.selectMode = selectMode;
+window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;
+window.showLogin = showLogin;
+window.showRegister = showRegister;
 
-// Modal close handlers
+// Modal close handlers and button event listeners
 document.addEventListener('DOMContentLoaded', () => {
+    // Modal close buttons
     document.querySelectorAll('.close').forEach(btn => {
         btn.addEventListener('click', function() {
             this.closest('.modal').style.display = 'none';
         });
     });
     
+    // Close modal on background click
     window.addEventListener('click', function(event) {
         if (event.target.classList.contains('modal')) {
             event.target.style.display = 'none';
         }
     });
+    
+    // Game buttons - wait for game screen to be ready
+    setTimeout(() => {
+        const bidBtn = document.getElementById('bid-btn');
+        const passBtn = document.getElementById('pass-btn');
+        const playChaosBtn = document.getElementById('play-chaos-btn');
+        const sellPropertyBtn = document.getElementById('sell-property-btn');
+        
+        if (bidBtn) {
+            bidBtn.addEventListener('click', placeBid);
+        }
+        
+        if (passBtn) {
+            passBtn.addEventListener('click', passBid);
+        }
+        
+        if (playChaosBtn) {
+            playChaosBtn.addEventListener('click', playChaosCard);
+        }
+        
+        if (sellPropertyBtn) {
+            sellPropertyBtn.addEventListener('click', sellProperty);
+        }
+    }, 100);
 });
