@@ -89,11 +89,14 @@ function initSoloGame() {
         { id: 0, name: playerName || 'You', money: 500, properties: [], tasks: [], completedTasks: [], chaosCards: [], hasReceivedCatchUp: false }
     ];
     
-    // Add AI players
+    // Add AI players with random casino names
+    const usedNames = [playerName || 'You'];
     for (let i = 1; i < 4; i++) {
+        const botName = getRandomBotName(usedNames);
+        usedNames.push(botName);
         gameState.players.push({
             id: i,
-            name: `Bot ${i}`,
+            name: botName,
             money: 500,
             properties: [],
             tasks: [],
@@ -319,23 +322,90 @@ function processNextBidder() {
     }
 }
 
+// Bot AI with scenario-based decision making
 function aiBid(aiPlayer) {
     const minBid = gameState.currentBid + 50;
     const needsProperty = aiPlayer.tasks.some(task => task.propertyName === gameState.currentAuction.name);
+    const propertyValue = gameState.currentAuction.value;
+    const canAfford = aiPlayer.money >= minBid;
+    const moneyRatio = aiPlayer.money / 500; // Starting money
     
-    // AI decision logic
-    let shouldBid = false;
-    if (needsProperty && aiPlayer.money >= minBid) {
-        shouldBid = Math.random() > 0.2; // 80% chance if needed
-    } else if (aiPlayer.money >= minBid * 2) {
-        shouldBid = Math.random() > 0.7; // 30% chance to block
+    // SCENARIO 1: Bot needs this property for a task
+    if (needsProperty && canAfford) {
+        // Calculate max bid (up to 150% of property value or 80% of money)
+        const maxBid = Math.min(
+            Math.floor(propertyValue * 1.5),
+            Math.floor(aiPlayer.money * 0.8)
+        );
+        if (maxBid >= minBid) {
+            const bid = Math.max(minBid, Math.min(maxBid, gameState.currentBid + 50));
+            placeBidForPlayer(aiPlayer.id, bid);
+            return;
+        }
     }
     
-    if (shouldBid) {
-        const bid = Math.min(minBid, Math.floor(aiPlayer.money * 0.8));
-        placeBidForPlayer(aiPlayer.id, bid);
-    } else {
+    // SCENARIO 2: Bot doesn't have enough money - try to use chaos card
+    if (!canAfford && aiPlayer.chaosCards.length > 0) {
+        const moneyCard = aiPlayer.chaosCards.find(card => 
+            card.name === "Accounting Error (In Your Favor)" || 
+            card.name === "We Found a Loophole"
+        );
+        if (moneyCard && needsProperty) {
+            // Use chaos card to get money
+            const cardIndex = aiPlayer.chaosCards.indexOf(moneyCard);
+            executeChaosCardForAI(aiPlayer, moneyCard, cardIndex, null);
+            // After getting money, try bidding again
+            setTimeout(() => {
+                if (aiPlayer.money >= minBid) {
+                    const bid = Math.min(minBid, Math.floor(aiPlayer.money * 0.7));
+                    placeBidForPlayer(aiPlayer.id, bid);
+                } else {
+                    passBidForPlayer(aiPlayer.id);
+                }
+            }, 500);
+            return;
+        }
+    }
+    
+    // SCENARIO 3: Block opponent if they're winning and bot has good money
+    const humanPlayer = gameState.players[gameState.playerId];
+    const isHumanWinning = gameState.highestBidder === gameState.playerId;
+    if (isHumanWinning && moneyRatio > 0.6 && canAfford && !needsProperty) {
+        // 40% chance to block
+        if (Math.random() < 0.4) {
+            const bid = Math.min(minBid + 50, Math.floor(aiPlayer.money * 0.5));
+            placeBidForPlayer(aiPlayer.id, bid);
+            return;
+        }
+    }
+    
+    // SCENARIO 4: Good deal - property value is high and bid is low
+    if (propertyValue > 300 && gameState.currentBid < propertyValue * 0.6 && canAfford) {
+        // 50% chance to bid on good deals
+        if (Math.random() < 0.5) {
+            const bid = Math.min(minBid, Math.floor(propertyValue * 0.7));
+            placeBidForPlayer(aiPlayer.id, bid);
+            return;
+        }
+    }
+    
+    // SCENARIO 5: Low money - pass
+    if (moneyRatio < 0.3 && !needsProperty) {
         passBidForPlayer(aiPlayer.id);
+        return;
+    }
+    
+    // SCENARIO 6: Default - pass if can't afford or don't need
+    if (!canAfford || !needsProperty) {
+        passBidForPlayer(aiPlayer.id);
+    } else {
+        // Can afford and might want it - 30% chance
+        if (Math.random() < 0.3) {
+            const bid = Math.min(minBid, Math.floor(aiPlayer.money * 0.6));
+            placeBidForPlayer(aiPlayer.id, bid);
+        } else {
+            passBidForPlayer(aiPlayer.id);
+        }
     }
 }
 
@@ -388,6 +458,7 @@ function placeBidForPlayer(playerId, bidAmount) {
 }
 
 function passBid() {
+    // One-touch pass
     passBidForPlayer(gameState.playerId);
 }
 
@@ -423,20 +494,36 @@ function endAuction() {
         checkTaskCompletion(gameState.highestBidder);
     }
     
-    // Move to action phase
+    // Move to action phase - start with first player
     gameState.currentPhase = 'action';
-    gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-    addLog("Action Phase: You can play one Chaos card.");
+    gameState.currentPlayerIndex = 0;
+    gameState.chaosCardPlayedThisTurn = false;
     
-    const player = gameState.players[gameState.playerId];
-    if (player.chaosCards.length > 0 && !gameState.chaosCardPlayedThisTurn) {
-        document.getElementById('play-chaos-btn').disabled = false;
+    // Reset chaos card played flags for all players
+    gameState.players.forEach(p => p.chaosCardPlayedThisTurn = false);
+    
+    addLog("Action Phase: Players take turns playing Chaos cards.");
+    
+    const firstPlayer = gameState.players[0];
+    if (firstPlayer.id === gameState.playerId) {
+        if (firstPlayer.chaosCards.length > 0) {
+            document.getElementById('play-chaos-btn').disabled = false;
+        }
+        addLog("Your turn! You can play one Chaos card.");
+    } else {
+        processAITurn(firstPlayer);
     }
     
     updateDisplay();
 }
 
 function playChaosCard() {
+    // Only allow on player's turn
+    if (gameState.currentPlayerIndex !== gameState.playerId) {
+        addLog("Wait for your turn!");
+        return;
+    }
+    
     if (gameState.chaosCardPlayedThisTurn) {
         addLog("You can only play one Chaos card per turn!");
         return;
@@ -505,11 +592,38 @@ function showPlayerSelection(card, cardIndex) {
     modal.style.display = 'block';
 }
 
-function executeChaosCard(card, cardIndex, targetId) {
-    const player = gameState.players[gameState.playerId];
+// Execute chaos card for AI players
+function executeChaosCardForAI(aiPlayer, card, cardIndex, targetId) {
     const target = targetId ? gameState.players.find(p => p.id === targetId) : null;
     
-    // Remove card
+    // Remove card from AI's hand
+    aiPlayer.chaosCards.splice(cardIndex, 1);
+    aiPlayer.chaosCardPlayedThisTurn = true;
+    
+    addLog(`${aiPlayer.name} played: ${card.name}${target ? ` on ${target.name}` : ''}`);
+    
+    // Execute effect
+    executeChaosCardEffect(aiPlayer, card, target);
+    updateDisplay();
+}
+
+function executeChaosCard(card, cardIndex, targetId) {
+    // Only allow on player's turn
+    if (gameState.currentPlayerIndex !== gameState.playerId) {
+        addLog("Wait for your turn!");
+        return;
+    }
+    
+    const player = gameState.players[gameState.playerId];
+    
+    if (gameState.chaosCardPlayedThisTurn) {
+        addLog("You can only play one Chaos card per turn!");
+        return;
+    }
+    
+    const target = targetId ? gameState.players.find(p => p.id === targetId) : null;
+    
+    // Remove card (cards are consumed when played)
     player.chaosCards.splice(cardIndex, 1);
     gameState.chaosCardPlayedThisTurn = true;
     document.getElementById('play-chaos-btn').disabled = true;
@@ -517,33 +631,74 @@ function executeChaosCard(card, cardIndex, targetId) {
     addLog(`You played: ${card.name}${target ? ` on ${target.name}` : ''}`);
     
     // Execute effect
+    executeChaosCardEffect(player, card, target);
+    updateDisplay();
+    
+    // Advance to next player's turn after playing card
+    advanceTurn();
+}
+
+function executeChaosCardEffect(player, card, target) {
+    // Execute effect
     switch (card.name) {
         case "Petty Crime, Big Smile":
-            if (target && target.money >= 100) {
-                target.money -= 100;
-                player.money += 100;
-                addLog(`Stole 100 from ${target.name}!`);
-            } else if (target && target.chaosCards.length > 0) {
-                const stolen = target.chaosCards.splice(Math.floor(Math.random() * target.chaosCards.length), 1)[0];
-                player.chaosCards.push(stolen);
-                addLog(`Stole ${stolen.name} from ${target.name}!`);
+            if (target) {
+                if (target.money >= 100) {
+                    target.money -= 100;
+                    player.money += 100;
+                    addLog(`💰 ${player.name} stole 100 from ${target.name}!`);
+                } else if (target.chaosCards.length > 0) {
+                    const stolen = target.chaosCards.splice(Math.floor(Math.random() * target.chaosCards.length), 1)[0];
+                    player.chaosCards.push(stolen);
+                    addLog(`🃏 ${player.name} stole ${stolen.name} from ${target.name}!`);
+                }
+            }
+            break;
+        case "Inside Job":
+            if (target && target.properties.length >= 4) {
+                const stolen = target.properties.splice(Math.floor(Math.random() * target.properties.length), 1)[0];
+                player.properties.push(stolen);
+                addLog(`🏠 ${player.name} stole ${stolen.name} from ${target.name}!`);
             }
             break;
         case "Accounting Error (In Your Favor)":
             player.money += 300;
-            addLog("Gained 300 money!");
+            addLog(`💰 ${player.name} gained 300 money!`);
             break;
         case "Unexpected Fine":
             if (target) {
                 if (target.money >= 200) {
                     target.money -= 200;
-                    addLog(`${target.name} paid 200!`);
+                    player.money += 200;
+                    addLog(`💰 ${target.name} paid 200 to ${player.name}!`);
                 } else if (target.properties.length > 0) {
                     const sold = target.properties.pop();
                     target.money += Math.floor(sold.value / 2);
                     gameState.propertyDeck.unshift(sold);
-                    addLog(`${target.name} sold ${sold.name}!`);
+                    addLog(`🏠 ${target.name} sold ${sold.name} to pay fine!`);
                 }
+            }
+            break;
+        case "Fake Bidder":
+            if (gameState.currentAuction) {
+                gameState.currentBid += 200;
+                addLog(`🎲 ${player.name} raised bid by 200 (doesn't pay)!`);
+            }
+            break;
+        case "Auction Goes Sideways":
+            if (gameState.currentAuction) {
+                gameState.propertyDeck.unshift(gameState.currentAuction);
+                gameState.currentAuction = null;
+                gameState.currentBid = 50;
+                gameState.highestBidder = null;
+                addLog(`💥 ${player.name} cancelled the auction!`);
+            }
+            break;
+        case "Sudden Disinterest":
+            if (gameState.currentAuction) {
+                gameState.currentBid = 50;
+                gameState.highestBidder = null;
+                addLog(`🔄 ${player.name} reset all bids to 50!`);
             }
             break;
         case "Fast-Track Approval":
@@ -557,21 +712,46 @@ function executeChaosCard(card, cardIndex, targetId) {
                 if (gameState.taskDeck.length > 0) {
                     player.tasks.push(gameState.taskDeck.pop());
                 }
-                addLog(`Instantly completed: ${task.description}!`);
+                addLog(`✅ ${player.name} instantly completed: ${task.description}!`);
+                checkTaskCompletion(player.id);
+            }
+            break;
+        case "Double or Nothing":
+            if (Math.random() < 0.5) {
+                player.money *= 2;
+                addLog(`🎲 ${player.name} doubled their money!`);
+            } else {
+                player.money = Math.floor(player.money / 2);
+                addLog(`💸 ${player.name} lost half their money!`);
+            }
+            break;
+        case "We Found a Loophole":
+            player.money += 500;
+            addLog(`💰 ${player.name} found a loophole! +500 money!`);
+            break;
+        case "Swap Lists!":
+            if (target && target.tasks.length > 0 && player.tasks.length > 0) {
+                const playerTask = player.tasks.splice(Math.floor(Math.random() * player.tasks.length), 1)[0];
+                const targetTask = target.tasks.splice(Math.floor(Math.random() * target.tasks.length), 1)[0];
+                player.tasks.push(targetTask);
+                target.tasks.push(playerTask);
+                addLog(`🔄 ${player.name} swapped a task with ${target.name}!`);
+            }
+            break;
+        case "Lost the Paperwork":
+            if (target && target.completedTasks.length > 0) {
+                const task = target.completedTasks.pop();
+                target.tasks.push(task);
+                addLog(`📄 ${player.name} un-completed ${target.name}'s task!`);
             }
             break;
         default:
-            addLog(`Card effect: ${card.description}`);
+            addLog(`🎴 ${player.name} played: ${card.description}`);
     }
     
     document.getElementById('card-modal').style.display = 'none';
+    document.getElementById('player-select-modal').style.display = 'none';
     updateDisplay();
-    
-    // After action phase, start next auction
-    setTimeout(() => {
-        processIncomePhase();
-        setTimeout(() => startAuction(), 2000);
-    }, 2000);
 }
 
 function processIncomePhase() {
