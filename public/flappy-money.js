@@ -8,7 +8,7 @@ let flappyGame = {
     gameOver: false,
     gameStarted: false,
     pipeGap: 375, // 1.5x larger (250 * 1.5)
-    pipeSpeed: 3,
+    pipeSpeed: 5, // Faster (was 3)
     lastPipeTime: 0,
     moneyParticles: [],
     theme: 'og',
@@ -30,7 +30,7 @@ const FLAPPY_THEMES = {
     },
     scifi: {
         name: 'Sci-Fi',
-        cost: 100,
+        cost: 150,
         owned: false,
         birdColor: '#00FFFF',
         birdSymbol: '🤖',
@@ -41,7 +41,7 @@ const FLAPPY_THEMES = {
     },
     neon: {
         name: 'Neon',
-        cost: 150,
+        cost: 200,
         owned: false,
         birdColor: '#FF00FF',
         birdSymbol: '💜',
@@ -52,7 +52,7 @@ const FLAPPY_THEMES = {
     },
     cyberpunk: {
         name: 'Cyberpunk',
-        cost: 200,
+        cost: 250,
         owned: false,
         birdColor: '#00FF00',
         birdSymbol: '⚡',
@@ -63,7 +63,7 @@ const FLAPPY_THEMES = {
     },
     space: {
         name: 'Space',
-        cost: 250,
+        cost: 300,
         owned: false,
         birdColor: '#FFD700',
         birdSymbol: '🚀',
@@ -74,7 +74,7 @@ const FLAPPY_THEMES = {
     },
     classic: {
         name: 'Classic',
-        cost: 10, // 10 flappy points
+        cost: 150,
         owned: false,
         birdColor: '#FFA500',
         birdSymbol: '🐦',
@@ -85,7 +85,7 @@ const FLAPPY_THEMES = {
     },
     retro: {
         name: 'Retro',
-        cost: 10,
+        cost: 180,
         owned: false,
         birdColor: '#FF1493',
         birdSymbol: '🦩',
@@ -96,7 +96,7 @@ const FLAPPY_THEMES = {
     },
     scary: {
         name: 'Scary',
-        cost: 10,
+        cost: 200,
         owned: false,
         birdColor: '#8B0000',
         birdSymbol: '🦇',
@@ -107,7 +107,7 @@ const FLAPPY_THEMES = {
     },
     dodgy: {
         name: 'Dodgy',
-        cost: 10,
+        cost: 220,
         owned: false,
         birdColor: '#FFD700',
         birdSymbol: '🦜',
@@ -118,7 +118,7 @@ const FLAPPY_THEMES = {
     },
     cat: {
         name: 'Cat',
-        cost: 10,
+        cost: 250,
         owned: false,
         birdColor: '#FFA500',
         birdSymbol: '🐱',
@@ -129,7 +129,7 @@ const FLAPPY_THEMES = {
     },
     meme: {
         name: 'Meme',
-        cost: 10,
+        cost: 280,
         owned: false,
         birdColor: '#00FF00',
         birdSymbol: '🦆',
@@ -159,10 +159,10 @@ function initFlappyMoney() {
     flappyGame.canvas = document.createElement('canvas');
     flappyGame.canvas.id = 'flappy-money-canvas';
     
-    // Calculate responsive size
+    // Calculate responsive size - half width (less squashed)
     const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
     const aspectRatio = 600 / 400; // height/width
-    flappyGame.canvas.width = Math.min(containerWidth - 40, 1200);
+    flappyGame.canvas.width = Math.min((containerWidth - 40) / 2, 600); // Half width, max 600px
     flappyGame.canvas.height = flappyGame.canvas.width * aspectRatio;
     
     const theme = FLAPPY_THEMES[flappyGame.theme] || FLAPPY_THEMES.og;
@@ -183,7 +183,7 @@ function initFlappyMoney() {
     const resizeCanvas = () => {
         const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
         const aspectRatio = 600 / 400;
-        const newWidth = Math.min(containerWidth - 40, 1200);
+        const newWidth = Math.min((containerWidth - 40) / 2, 600); // Half width
         const newHeight = newWidth * aspectRatio;
         
         if (flappyGame.canvas.width !== newWidth || flappyGame.canvas.height !== newHeight) {
@@ -264,9 +264,9 @@ function updateFlappyGame() {
         gameOverFlappy();
     }
     
-    // Update pipes - more spaced out
+            // Update pipes - faster spawning
     const now = Date.now();
-    if (now - flappyGame.lastPipeTime > 2800) {
+    if (now - flappyGame.lastPipeTime > 2000) { // Faster pipe spawning (was 2800)
         createPipe();
         flappyGame.lastPipeTime = now;
     }
@@ -286,7 +286,10 @@ function updateFlappyGame() {
         if (pipe.x + pipe.width < flappyGame.moneyBag.x && !pipe.passed) {
             pipe.passed = true;
             flappyGame.score++;
-            // No money per pipe - only points at game end
+            // Earn 1 flappy point per pipe passed (in real-time)
+            flappyGame.flappyPoints += 1;
+            saveFlappyPoints();
+            updateFlappyPointsDisplay();
             createMoneyParticle(pipe.x + pipe.width / 2, pipe.topHeight + flappyGame.pipeGap / 2);
         }
         
@@ -329,8 +332,8 @@ function gameOverFlappy() {
     if (flappyGame.gameOver) return; // Prevent multiple calls
     flappyGame.gameOver = true;
     
-    // Give 10 flappy points per game
-    const pointsEarned = 10;
+    // Give 1 flappy point per score point
+    const pointsEarned = flappyGame.score;
     flappyGame.flappyPoints += pointsEarned;
     saveFlappyPoints();
     
@@ -340,6 +343,7 @@ function gameOverFlappy() {
     if (typeof updateDisplay === 'function') {
         updateDisplay();
     }
+    updateFlappyPointsDisplay();
 }
 
 function drawFlappyGame() {
@@ -706,18 +710,6 @@ function showFlappyThemeShop() {
                 margin-right: 10px;
                 opacity: ${flappyGame.flappyPoints >= 10 ? '1' : '0.5'};
             ">10 Points → 5 Cash</button>
-            <span style="color: #FFD700; font-weight: bold;">OR</span>
-            <button onclick="tradeFlappyPointsForTheme()" style="
-                background: ${flappyGame.flappyPoints >= 10 ? '#FFD700' : '#666'};
-                color: #000;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 10px;
-                font-weight: bold;
-                cursor: ${flappyGame.flappyPoints >= 10 ? 'pointer' : 'not-allowed'};
-                margin-left: 10px;
-                opacity: ${flappyGame.flappyPoints >= 10 ? '1' : '0.5'};
-            ">10 Points → Unlock Theme</button>
         </div>
         <div id="theme-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
         </div>
@@ -757,30 +749,18 @@ function showFlappyThemeShop() {
                      ${flappyGame.theme === themeKey ? 'opacity: 0.5; cursor: not-allowed;' : ''}
                  ">${flappyGame.theme === themeKey ? 'CURRENT' : 'SELECT'}</button>` :
                 `<div style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">
-                    Cost: ${theme.cost === 0 ? 'FREE' : theme.cost <= 10 ? '🎮 ' + theme.cost + ' Points' : '💰 ' + theme.cost + ' Money'}
+                    Cost: ${theme.cost === 0 ? 'FREE' : '🎮 ' + theme.cost + ' Flappy Points'}
                 </div>
-                 ${theme.cost <= 10 ? 
-                    `<button onclick="buyFlappyThemeWithPoints('${themeKey}')" style="
-                         background: ${canBuyWithPoints ? '#FFD700' : '#666'};
-                         color: #000;
-                         border: none;
-                         padding: 10px 20px;
-                         border-radius: 10px;
-                         font-weight: bold;
-                         cursor: ${canBuyWithPoints ? 'pointer' : 'not-allowed'};
-                         opacity: ${canBuyWithPoints ? '1' : '0.5'};
-                     ">${canBuyWithPoints ? 'BUY (Points)' : 'NEED ' + theme.cost + ' POINTS'}</button>` :
-                    `<button onclick="buyFlappyTheme('${themeKey}')" style="
-                         background: ${canBuyWithMoney ? '#FFD700' : '#666'};
-                         color: #000;
-                         border: none;
-                         padding: 10px 20px;
-                         border-radius: 10px;
-                         font-weight: bold;
-                         cursor: ${canBuyWithMoney ? 'pointer' : 'not-allowed'};
-                         opacity: ${canBuyWithMoney ? '1' : '0.5'};
-                     ">${canBuyWithMoney ? 'BUY (Money)' : 'CAN\'T AFFORD'}</button>`
-                 }
+                 <button onclick="buyFlappyThemeWithPoints('${themeKey}')" style="
+                     background: ${canBuyWithPoints ? '#FFD700' : '#666'};
+                     color: #000;
+                     border: none;
+                     padding: 10px 20px;
+                     border-radius: 10px;
+                     font-weight: bold;
+                     cursor: ${canBuyWithPoints ? 'pointer' : 'not-allowed'};
+                     opacity: ${canBuyWithPoints ? '1' : '0.5'};
+                 ">${canBuyWithPoints ? 'BUY' : 'NEED ' + theme.cost + ' POINTS'}</button>
                 `
             }
         `;
@@ -878,39 +858,6 @@ function tradeFlappyPointsForCash() {
     showFlappyThemeShop();
 }
 
-function tradeFlappyPointsForTheme() {
-    if (flappyGame.flappyPoints < 10) {
-        alert('You need at least 10 flappy points to unlock a theme!');
-        return;
-    }
-    
-    // Find first unowned theme that costs 10 points
-    const availableThemes = Object.keys(FLAPPY_THEMES).filter(key => 
-        !FLAPPY_THEMES[key].owned && FLAPPY_THEMES[key].cost === 10
-    );
-    
-    if (availableThemes.length === 0) {
-        alert('All 10-point themes are already unlocked!');
-        return;
-    }
-    
-    // Unlock random theme
-    const randomTheme = availableThemes[Math.floor(Math.random() * availableThemes.length)];
-    flappyGame.flappyPoints -= 10;
-    FLAPPY_THEMES[randomTheme].owned = true;
-    saveOwnedThemes();
-    
-    if (typeof addLog === 'function') {
-        addLog(`🎨 Unlocked ${FLAPPY_THEMES[randomTheme].name} theme for 10 flappy points!`);
-    }
-    if (typeof updateDisplay === 'function') {
-        updateDisplay();
-    }
-    
-    // Refresh shop
-    document.getElementById('flappy-theme-shop').remove();
-    showFlappyThemeShop();
-}
 
 function selectFlappyTheme(themeKey) {
     if (!FLAPPY_THEMES[themeKey] || !FLAPPY_THEMES[themeKey].owned) return;
@@ -936,7 +883,6 @@ window.buyFlappyTheme = buyFlappyTheme;
 window.buyFlappyThemeWithPoints = buyFlappyThemeWithPoints;
 window.selectFlappyTheme = selectFlappyTheme;
 window.tradeFlappyPointsForCash = tradeFlappyPointsForCash;
-window.tradeFlappyPointsForTheme = tradeFlappyPointsForTheme;
 
     // Load themes on init
 loadOwnedThemes();
@@ -950,7 +896,10 @@ function updateFlappyPointsDisplay() {
     }
 }
 
-// Call update on init
+// Update display periodically and on events
+setInterval(updateFlappyPointsDisplay, 1000); // Update every second
+
+// Also update when game state changes
 if (typeof updateDisplay === 'function') {
     const originalUpdateDisplay = updateDisplay;
     updateDisplay = function() {
@@ -958,4 +907,11 @@ if (typeof updateDisplay === 'function') {
         updateFlappyPointsDisplay();
     };
 }
+
+// Update on game events
+const originalGameOver = gameOverFlappy;
+gameOverFlappy = function() {
+    originalGameOver();
+    updateFlappyPointsDisplay();
+};
 
