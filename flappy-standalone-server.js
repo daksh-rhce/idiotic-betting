@@ -217,7 +217,12 @@ app.get('/', (req, res) => {
                 return;
             }
             flappyGame.moneyBag.velocity = -11; // Jump higher (was -9)
-            flappyGame.moneyBag.horizontalSpeed = 0.8; // Less forward movement (was 1.5)
+            // Move forward more in fullscreen mode
+            if (flappyGame.isFullscreen) {
+                flappyGame.moneyBag.horizontalSpeed = 3.0; // Much more forward movement in fullscreen
+            } else {
+                flappyGame.moneyBag.horizontalSpeed = 0.8; // Less forward movement (was 1.5)
+            }
         }
 
         function updateFlappyGame() {
@@ -478,6 +483,8 @@ app.get('/', (req, res) => {
                         flappyGame.canvas.width = window.innerWidth;
                         flappyGame.canvas.height = window.innerHeight;
                         flappyGame.isFullscreen = true;
+                        // Reset bird position when entering fullscreen
+                        flappyGame.moneyBag.x = 100;
                     }
                 };
                 
