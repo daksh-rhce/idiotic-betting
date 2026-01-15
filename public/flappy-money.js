@@ -8,11 +8,13 @@ let flappyGame = {
     gameOver: false,
     gameStarted: false,
     pipeGap: 375, // 1.5x larger (250 * 1.5)
-    pipeSpeed: 5, // Faster (was 3)
+    pipeSpeed: 3.5, // Slower (was 5)
     lastPipeTime: 0,
     moneyParticles: [],
     theme: 'og',
-    flappyPoints: 0 // New currency system
+    flappyPoints: 0, // New currency system
+    isFullscreen: false,
+    birdXPosition: 100 // Fixed x position for bird
 };
 
 // Theme definitions
@@ -209,12 +211,20 @@ function initFlappyMoney() {
         jumpMoneyBag();
     });
     
+    // Spacebar support for fullscreen
+    document.addEventListener('keydown', (e) => {
+        if (flappyGame.isFullscreen && (e.code === 'Space' || e.key === ' ')) {
+            e.preventDefault();
+            jumpMoneyBag();
+        }
+    });
+    
     // Start game loop
     gameLoop();
 }
 
 function resetFlappyGame() {
-    flappyGame.moneyBag = { x: 100, y: 300, width: 40, height: 30, velocity: 0, gravity: 0.3, horizontalSpeed: 0 };
+    flappyGame.moneyBag = { x: flappyGame.birdXPosition, y: 300, width: 40, height: 30, velocity: 0, gravity: 0.25, horizontalSpeed: 0 };
     flappyGame.pipes = [];
     flappyGame.score = 0;
     flappyGame.gameOver = false;
@@ -231,8 +241,8 @@ function jumpMoneyBag() {
         resetFlappyGame();
         return;
     }
-    flappyGame.moneyBag.velocity = -9;
-    flappyGame.moneyBag.horizontalSpeed = 1.5; // Move forward on jump
+    flappyGame.moneyBag.velocity = -11; // Jump higher (was -9)
+    flappyGame.moneyBag.horizontalSpeed = 0.8; // Less forward movement (was 1.5)
 }
 
 function updateFlappyGame() {
@@ -242,18 +252,13 @@ function updateFlappyGame() {
     flappyGame.moneyBag.velocity += flappyGame.moneyBag.gravity;
     flappyGame.moneyBag.y += flappyGame.moneyBag.velocity;
     
-    // Apply horizontal movement (forward momentum)
-    if (flappyGame.moneyBag.horizontalSpeed > 0) {
-        flappyGame.moneyBag.x += flappyGame.moneyBag.horizontalSpeed;
-        flappyGame.moneyBag.horizontalSpeed *= 0.95; // Gradually slow down
-    }
+    // Keep bird at fixed x position (background moves instead)
+    flappyGame.moneyBag.x = flappyGame.birdXPosition;
     
-    // Keep money bag in bounds horizontally
-    if (flappyGame.moneyBag.x < 50) {
-        flappyGame.moneyBag.x = 50;
-    }
-    if (flappyGame.moneyBag.x > flappyGame.canvas.width - flappyGame.moneyBag.width - 50) {
-        flappyGame.moneyBag.x = flappyGame.canvas.width - flappyGame.moneyBag.width - 50;
+    // Apply horizontal movement (forward momentum) - but keep bird centered
+    if (flappyGame.moneyBag.horizontalSpeed > 0) {
+        // Move background/pipes backward instead of bird forward
+        flappyGame.moneyBag.horizontalSpeed *= 0.95; // Gradually slow down
     }
     
     // Check boundaries
@@ -273,8 +278,12 @@ function updateFlappyGame() {
         flappyGame.lastPipeTime = now;
     }
     
+    // Calculate background movement speed (matches bird forward movement)
+    const backgroundSpeed = flappyGame.pipeSpeed + (flappyGame.moneyBag.horizontalSpeed * 0.5);
+    
     flappyGame.pipes.forEach((pipe, index) => {
-        pipe.x -= flappyGame.pipeSpeed;
+        // Move pipes backward at speed matching bird's forward movement
+        pipe.x -= backgroundSpeed;
         
         // Check collision
         if (flappyGame.moneyBag.x < pipe.x + pipe.width &&
@@ -912,4 +921,192 @@ gameOverFlappy = function() {
     originalGameOver();
     updateFlappyPointsDisplay();
 };
+
+// Fullscreen functionality
+function toggleFlappyFullscreen() {
+    if (!flappyGame.canvas) return;
+    
+    if (!flappyGame.isFullscreen) {
+        // Enter fullscreen
+        const canvas = flappyGame.canvas;
+        
+        if (canvas.requestFullscreen) {
+            canvas.requestFullscreen();
+        } else if (canvas.webkitRequestFullscreen) {
+            canvas.webkitRequestFullscreen();
+        } else if (canvas.mozRequestFullScreen) {
+            canvas.mozRequestFullScreen();
+        } else if (canvas.msRequestFullscreen) {
+            canvas.msRequestFullscreen();
+        }
+        
+        // Resize canvas to fullscreen
+        const resizeFullscreen = () => {
+            if (document.fullscreenElement || document.webkitFullscreenElement || 
+                document.mozFullScreenElement || document.msFullscreenElement) {
+                flappyGame.canvas.width = window.innerWidth;
+                flappyGame.canvas.height = window.innerHeight;
+                flappyGame.isFullscreen = true;
+            }
+        };
+        
+        canvas.addEventListener('fullscreenchange', resizeFullscreen);
+        canvas.addEventListener('webkitfullscreenchange', resizeFullscreen);
+        canvas.addEventListener('mozfullscreenchange', resizeFullscreen);
+        canvas.addEventListener('MSFullscreenChange', resizeFullscreen);
+        
+        resizeFullscreen();
+    } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        
+        flappyGame.isFullscreen = false;
+        
+        // Restore canvas size
+        setTimeout(() => {
+            const container = document.getElementById('flappy-money-container');
+            if (container) {
+                const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
+                const aspectRatio = 600 / 400;
+                const newWidth = Math.min((containerWidth - 40) / 2, 600);
+                const newHeight = newWidth * aspectRatio;
+                flappyGame.canvas.width = newWidth;
+                flappyGame.canvas.height = newHeight;
+            }
+        }, 100);
+    }
+}
+
+// Handle fullscreen exit
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        flappyGame.isFullscreen = false;
+        const container = document.getElementById('flappy-money-container');
+        if (container && flappyGame.canvas) {
+            const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
+            const aspectRatio = 600 / 400;
+            const newWidth = Math.min((containerWidth - 40) / 2, 600);
+            const newHeight = newWidth * aspectRatio;
+            flappyGame.canvas.width = newWidth;
+            flappyGame.canvas.height = newHeight;
+        }
+    }
+});
+
+document.addEventListener('webkitfullscreenchange', () => {
+    if (!document.webkitFullscreenElement) {
+        flappyGame.isFullscreen = false;
+        const container = document.getElementById('flappy-money-container');
+        if (container && flappyGame.canvas) {
+            const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
+            const aspectRatio = 600 / 400;
+            const newWidth = Math.min((containerWidth - 40) / 2, 600);
+            const newHeight = newWidth * aspectRatio;
+            flappyGame.canvas.width = newWidth;
+            flappyGame.canvas.height = newHeight;
+        }
+    }
+});
+
+// Fullscreen functionality
+function toggleFlappyFullscreen() {
+    if (!flappyGame.canvas) return;
+    
+    if (!flappyGame.isFullscreen) {
+        // Enter fullscreen
+        const canvas = flappyGame.canvas;
+        
+        if (canvas.requestFullscreen) {
+            canvas.requestFullscreen();
+        } else if (canvas.webkitRequestFullscreen) {
+            canvas.webkitRequestFullscreen();
+        } else if (canvas.mozRequestFullScreen) {
+            canvas.mozRequestFullScreen();
+        } else if (canvas.msRequestFullscreen) {
+            canvas.msRequestFullscreen();
+        }
+        
+        // Resize canvas to fullscreen
+        const resizeFullscreen = () => {
+            if (document.fullscreenElement || document.webkitFullscreenElement || 
+                document.mozFullScreenElement || document.msFullscreenElement) {
+                flappyGame.canvas.width = window.innerWidth;
+                flappyGame.canvas.height = window.innerHeight;
+                flappyGame.isFullscreen = true;
+            }
+        };
+        
+        canvas.addEventListener('fullscreenchange', resizeFullscreen);
+        canvas.addEventListener('webkitfullscreenchange', resizeFullscreen);
+        canvas.addEventListener('mozfullscreenchange', resizeFullscreen);
+        canvas.addEventListener('MSFullscreenChange', resizeFullscreen);
+        
+        resizeFullscreen();
+    } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        
+        flappyGame.isFullscreen = false;
+        
+        // Restore canvas size
+        setTimeout(() => {
+            const container = document.getElementById('flappy-money-container');
+            if (container) {
+                const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
+                const aspectRatio = 600 / 400;
+                const newWidth = Math.min((containerWidth - 40) / 2, 600);
+                const newHeight = newWidth * aspectRatio;
+                flappyGame.canvas.width = newWidth;
+                flappyGame.canvas.height = newHeight;
+            }
+        }, 100);
+    }
+}
+
+// Handle fullscreen exit
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) {
+        flappyGame.isFullscreen = false;
+        const container = document.getElementById('flappy-money-container');
+        if (container && flappyGame.canvas) {
+            const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
+            const aspectRatio = 600 / 400;
+            const newWidth = Math.min((containerWidth - 40) / 2, 600);
+            const newHeight = newWidth * aspectRatio;
+            flappyGame.canvas.width = newWidth;
+            flappyGame.canvas.height = newHeight;
+        }
+    }
+});
+
+document.addEventListener('webkitfullscreenchange', () => {
+    if (!document.webkitFullscreenElement) {
+        flappyGame.isFullscreen = false;
+        const container = document.getElementById('flappy-money-container');
+        if (container && flappyGame.canvas) {
+            const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
+            const aspectRatio = 600 / 400;
+            const newWidth = Math.min((containerWidth - 40) / 2, 600);
+            const newHeight = newWidth * aspectRatio;
+            flappyGame.canvas.width = newWidth;
+            flappyGame.canvas.height = newHeight;
+        }
+    }
+});
 
