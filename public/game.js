@@ -754,6 +754,88 @@ function executeChaosCardEffect(player, card, target) {
     updateDisplay();
 }
 
+function advanceTurn() {
+    // Move to next player
+    gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+    gameState.chaosCardPlayedThisTurn = false;
+    
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    
+    // If all players have had a turn, start next auction
+    if (gameState.currentPlayerIndex === 0) {
+        setTimeout(() => {
+            processIncomePhase();
+            setTimeout(() => startAuction(), 2000);
+        }, 1500);
+    } else {
+        // Next player's turn
+        if (currentPlayer.id === gameState.playerId) {
+            // Human player's turn
+            if (currentPlayer.chaosCards.length > 0) {
+                document.getElementById('play-chaos-btn').disabled = false;
+            }
+            addLog(`Your turn! You can play a Chaos card.`);
+        } else {
+            // AI player's turn - they can play chaos card
+            processAITurn(currentPlayer);
+        }
+        updateDisplay();
+    }
+}
+
+function processAITurn(aiPlayer) {
+    // AI decides whether to play a chaos card
+    if (aiPlayer.chaosCardPlayedThisTurn || aiPlayer.chaosCards.length === 0) {
+        setTimeout(() => advanceTurn(), 1000);
+        return;
+    }
+    
+    // AI scenarios for playing chaos cards
+    // Scenario 1: Low money - use money card
+    if (aiPlayer.money < 200) {
+        const moneyCard = aiPlayer.chaosCards.find(c => 
+            c.name === "Accounting Error (In Your Favor)" || 
+            c.name === "We Found a Loophole"
+        );
+        if (moneyCard) {
+            const index = aiPlayer.chaosCards.indexOf(moneyCard);
+            executeChaosCardForAI(aiPlayer, moneyCard, index, null);
+            setTimeout(() => advanceTurn(), 1500);
+            return;
+        }
+    }
+    
+    // Scenario 2: Human player winning - sabotage
+    const humanPlayer = gameState.players[gameState.playerId];
+    if (humanPlayer.completedTasks.length > aiPlayer.completedTasks.length + 1) {
+        const sabotageCard = aiPlayer.chaosCards.find(c => 
+            c.name === "Unexpected Fine" || 
+            c.name === "Lost the Paperwork"
+        );
+        if (sabotageCard) {
+            const index = aiPlayer.chaosCards.indexOf(sabotageCard);
+            executeChaosCardForAI(aiPlayer, sabotageCard, index, gameState.playerId);
+            setTimeout(() => advanceTurn(), 1500);
+            return;
+        }
+    }
+    
+    // Scenario 3: 30% chance to play random card
+    if (Math.random() < 0.3 && aiPlayer.chaosCards.length > 0) {
+        const randomCard = aiPlayer.chaosCards[Math.floor(Math.random() * aiPlayer.chaosCards.length)];
+        const index = aiPlayer.chaosCards.indexOf(randomCard);
+        const target = randomCard.needsTarget ? 
+            gameState.players.find(p => p.id !== aiPlayer.id && p.id === gameState.playerId)?.id || 
+            gameState.players.find(p => p.id !== aiPlayer.id)?.id : null;
+        executeChaosCardForAI(aiPlayer, randomCard, index, target);
+        setTimeout(() => advanceTurn(), 1500);
+        return;
+    }
+    
+    // Skip turn
+    setTimeout(() => advanceTurn(), 1000);
+}
+
 function processIncomePhase() {
     gameState.players.forEach(player => {
         if (player.money === 0 && !player.hasReceivedCatchUp) {
