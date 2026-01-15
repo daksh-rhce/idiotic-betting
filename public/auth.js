@@ -5,8 +5,7 @@ let playerName = '';
 // Check if user is logged in
 function checkAuth() {
     const user = localStorage.getItem('user');
-    const verified = localStorage.getItem('verified');
-    if (user && verified === 'true') {
+    if (user) {
         currentUser = JSON.parse(user);
         showScreen('name-screen');
         return true;
@@ -25,18 +24,26 @@ function showLogin() {
     document.getElementById('login-form').style.display = 'block';
     document.getElementById('register-form').style.display = 'none';
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    } else {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+    }
 }
 
 function showRegister() {
     document.getElementById('login-form').style.display = 'none';
     document.getElementById('register-form').style.display = 'block';
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    } else {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    }
 }
 
 async function handleRegister() {
-    const email = document.getElementById('register-email').value;
+    const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
     const errorDiv = document.getElementById('register-error');
     const successDiv = document.getElementById('register-success');
@@ -44,66 +51,64 @@ async function handleRegister() {
     errorDiv.textContent = '';
     successDiv.textContent = '';
     
-    if (!email || !password) {
+    if (!username || !password) {
         errorDiv.textContent = 'Please fill in all fields';
         return;
     }
     
-    if (!email.endsWith('@gmail.com')) {
-        errorDiv.textContent = 'Please use a Gmail address';
+    if (username.length < 3) {
+        errorDiv.textContent = 'Username must be at least 3 characters';
+        return;
+    }
+    
+    if (password.length < 6) {
+        errorDiv.textContent = 'Password must be at least 6 characters';
         return;
     }
     
     try {
-        // Send registration request to server
         const response = await fetch('/api/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ username, password })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            successDiv.textContent = 'Registration successful! Check your email for verification link.';
-            // Store user (not verified yet)
-            localStorage.setItem('user', JSON.stringify({ email }));
-            localStorage.setItem('verified', 'false');
+            successDiv.textContent = 'Registration successful! You can now login.';
+            setTimeout(() => {
+                showLogin();
+                document.getElementById('login-username').value = username;
+            }, 1500);
         } else {
             errorDiv.textContent = data.error || 'Registration failed';
         }
     } catch (error) {
-        // For now, simulate registration (in production, use real email service)
-        console.log('Simulating registration...');
-        const verificationCode = Math.random().toString(36).substring(7);
-        localStorage.setItem('verificationCode', verificationCode);
-        localStorage.setItem('user', JSON.stringify({ email }));
-        localStorage.setItem('verified', 'false');
-        
-        // Show verification prompt
-        const verifyEmail = prompt(`Verification code (simulated): ${verificationCode}\n\nIn production, this would be sent to your email. Enter the code to verify:`);
-        if (verifyEmail === verificationCode) {
-            localStorage.setItem('verified', 'true');
-            currentUser = { email };
-            successDiv.textContent = 'Account verified! You can now login.';
-            setTimeout(() => {
-                showLogin();
-                document.getElementById('login-email').value = email;
-            }, 2000);
-        } else {
-            errorDiv.textContent = 'Invalid verification code';
+        // Fallback: store locally
+        const users = JSON.parse(localStorage.getItem('localUsers') || '{}');
+        if (users[username]) {
+            errorDiv.textContent = 'Username already exists';
+            return;
         }
+        users[username] = { username, password: btoa(password) }; // Simple encoding (not secure, but works)
+        localStorage.setItem('localUsers', JSON.stringify(users));
+        successDiv.textContent = 'Registration successful! You can now login.';
+        setTimeout(() => {
+            showLogin();
+            document.getElementById('login-username').value = username;
+        }, 1500);
     }
 }
 
 async function handleLogin() {
-    const email = document.getElementById('login-email').value;
+    const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
     const errorDiv = document.getElementById('login-error');
     
     errorDiv.textContent = '';
     
-    if (!email || !password) {
+    if (!username || !password) {
         errorDiv.textContent = 'Please fill in all fields';
         return;
     }
@@ -112,7 +117,7 @@ async function handleLogin() {
         const response = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ username, password })
         });
         
         const data = await response.json();
@@ -120,22 +125,20 @@ async function handleLogin() {
         if (response.ok) {
             currentUser = data.user;
             localStorage.setItem('user', JSON.stringify(data.user));
-            localStorage.setItem('verified', 'true');
             showScreen('name-screen');
         } else {
-            // Simulate login for demo
-            currentUser = { email };
-            localStorage.setItem('user', JSON.stringify({ email }));
-            localStorage.setItem('verified', 'true');
-            showScreen('name-screen');
+            errorDiv.textContent = data.error || 'Invalid credentials';
         }
     } catch (error) {
-        // Simulate login for demo
-        console.log('Simulating login...');
-        currentUser = { email };
-        localStorage.setItem('user', JSON.stringify({ email }));
-        localStorage.setItem('verified', 'true');
-        showScreen('name-screen');
+        // Fallback: check local storage
+        const users = JSON.parse(localStorage.getItem('localUsers') || '{}');
+        if (users[username] && users[username].password === btoa(password)) {
+            currentUser = { username };
+            localStorage.setItem('user', JSON.stringify({ username }));
+            showScreen('name-screen');
+        } else {
+            errorDiv.textContent = 'Invalid username or password';
+        }
     }
 }
 

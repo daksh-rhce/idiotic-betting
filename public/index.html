@@ -18,15 +18,15 @@
             </div>
             
             <div id="login-form" class="auth-form">
-                <input type="email" id="login-email" placeholder="Gmail Address" required>
+                <input type="text" id="login-username" placeholder="Username" required>
                 <input type="password" id="login-password" placeholder="Password" required>
                 <button class="btn btn-large" onclick="handleLogin()">Login</button>
                 <div id="login-error" class="error-message"></div>
             </div>
             
             <div id="register-form" class="auth-form" style="display: none;">
-                <input type="email" id="register-email" placeholder="Gmail Address" required>
-                <input type="password" id="register-password" placeholder="Password" required>
+                <input type="text" id="register-username" placeholder="Username (min 3 characters)" required>
+                <input type="password" id="register-password" placeholder="Password (min 6 characters)" required>
                 <button class="btn btn-large" onclick="handleRegister()">Register</button>
                 <div id="register-error" class="error-message"></div>
                 <div id="register-success" class="success-message"></div>

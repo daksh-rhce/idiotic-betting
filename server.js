@@ -3,7 +3,6 @@ const http = require('http');
 const path = require('path');
 const socketIo = require('socket.io');
 const bodyParser = require('body-parser');
-const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
 
 const app = express();
@@ -17,126 +16,54 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // In-memory storage (use database in production)
 const users = new Map();
-const verificationCodes = new Map();
 const activeGames = new Map();
-
-// Email configuration (using Gmail)
-// Note: In production, use environment variables for credentials
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.GMAIL_USER || 'your-email@gmail.com',
-        pass: process.env.GMAIL_PASS || 'your-app-password'
-    }
-});
 
 // API Routes
 app.post('/api/register', async (req, res) => {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
     
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password required' });
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required' });
     }
     
-    if (!email.endsWith('@gmail.com')) {
-        return res.status(400).json({ error: 'Please use a Gmail address' });
+    if (username.length < 3) {
+        return res.status(400).json({ error: 'Username must be at least 3 characters' });
     }
     
-    if (users.has(email)) {
-        return res.status(400).json({ error: 'Email already registered' });
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
+    if (users.has(username)) {
+        return res.status(400).json({ error: 'Username already taken' });
     }
     
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Generate verification code
-    const verificationCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    verificationCodes.set(email, verificationCode);
-    
-    // Store user (not verified)
-    users.set(email, {
-        email,
+    // Store user
+    users.set(username, {
+        username,
         password: hashedPassword,
-        verified: false,
         createdAt: new Date()
     });
     
-    // Send verification email
-    try {
-        await transporter.sendMail({
-            from: process.env.GMAIL_USER || 'your-email@gmail.com',
-            to: email,
-            subject: 'Verify Your Idiotic Betting Account',
-            html: `
-                <h2>Welcome to Idiotic Betting!</h2>
-                <p>Click the link below to verify your account:</p>
-                <a href="http://localhost:${PORT}/verify?email=${encodeURIComponent(email)}&code=${verificationCode}">
-                    Verify Account
-                </a>
-                <p>Or use this code: <strong>${verificationCode}</strong></p>
-            `
-        });
-        
-        res.json({ 
-            success: true, 
-            message: 'Verification email sent',
-            code: verificationCode // For testing, remove in production
-        });
-    } catch (error) {
-        console.error('Email error:', error);
-        // For demo, still return success with code
-        res.json({ 
-            success: true, 
-            message: 'Registration successful (email service not configured)',
-            code: verificationCode
-        });
-    }
-});
-
-app.get('/verify', (req, res) => {
-    const { email, code } = req.query;
-    
-    if (!email || !code) {
-        return res.send('Invalid verification link');
-    }
-    
-    const storedCode = verificationCodes.get(email);
-    if (storedCode === code) {
-        const user = users.get(email);
-        if (user) {
-            user.verified = true;
-            verificationCodes.delete(email);
-            res.send(`
-                <html>
-                    <body style="font-family: Arial; text-align: center; padding: 50px;">
-                        <h1>✅ Account Verified!</h1>
-                        <p>Your account has been verified. You can now login.</p>
-                        <a href="http://localhost:${PORT}">Go to Game</a>
-                    </body>
-                </html>
-            `);
-        } else {
-            res.send('User not found');
-        }
-    } else {
-        res.send('Invalid verification code');
-    }
+    res.json({ 
+        success: true, 
+        message: 'Registration successful'
+    });
 });
 
 app.post('/api/login', async (req, res) => {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
     
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password required' });
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required' });
     }
     
-    const user = users.get(email);
+    const user = users.get(username);
     if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
-    }
-    
-    if (!user.verified) {
-        return res.status(401).json({ error: 'Account not verified. Check your email.' });
     }
     
     const validPassword = await bcrypt.compare(password, user.password);
@@ -146,7 +73,7 @@ app.post('/api/login', async (req, res) => {
     
     res.json({ 
         success: true, 
-        user: { email: user.email } 
+        user: { username: user.username } 
     });
 });
 
@@ -197,5 +124,4 @@ app.get('/', (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`🎮 Idiotic Betting game running on http://localhost:${PORT}`);
-    console.log(`📧 Email service: ${process.env.GMAIL_USER ? 'Configured' : 'Not configured (using demo mode)'}`);
 });

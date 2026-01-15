@@ -1,0 +1,44 @@
+╔══════════════════════════════════════════════════════════════╗
+║           🚀 ONE-LINE DEPLOYMENT COMMANDS                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+📋 STEP 1: Create GitHub repo at https://github.com/new
+   Name: idiotic-betting
+   (Don't add README)
+
+📋 STEP 2: Copy and paste ONE of these commands:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPTION A: Complete setup + push + open Railway
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+cd ~/idiotic-betting && git remote add origin https://github.com/YOUR_USERNAME/idiotic-betting.git 2>/dev/null; git branch -M main; git push -u origin main && open https://railway.app
+
+(Replace YOUR_USERNAME with your GitHub username)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPTION B: If remote already exists, just push + open Railway
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+cd ~/idiotic-betting && git push origin main && open https://railway.app
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPTION C: Using Railway CLI (if authenticated)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+cd ~/idiotic-betting && railway login && railway init && railway up
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 STEP 3: On Railway website:
+   1. Sign up with GitHub
+   2. New Project → Deploy from GitHub repo
+   3. Select: idiotic-betting
+   4. Get your public URL!
+   5. No environment variables needed!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+

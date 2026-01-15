@@ -1,0 +1,3 @@
+#!/bin/bash
+cd ~/idiotic-betting && if [ -z "$(git remote -v)" ]; then echo "⚠️  No GitHub remote set. Run: git remote add origin https://github.com/YOUR_USERNAME/idiotic-betting.git && git branch -M main && git push -u origin main"; else git push origin main 2>/dev/null && echo "✅ Pushed to GitHub! Now: 1) Go to https://railway.app 2) New Project → Deploy from GitHub 3) Select your repo"; fi && if command -v railway &>/dev/null && railway whoami &>/dev/null; then echo "🚀 Deploying to Railway..." && railway up; else echo "📋 Railway CLI not authenticated. Run: railway login (or deploy via https://railway.app)"; fi
+
