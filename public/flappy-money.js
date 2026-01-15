@@ -332,13 +332,9 @@ function gameOverFlappy() {
     if (flappyGame.gameOver) return; // Prevent multiple calls
     flappyGame.gameOver = true;
     
-    // Give 1 flappy point per score point
-    const pointsEarned = flappyGame.score;
-    flappyGame.flappyPoints += pointsEarned;
-    saveFlappyPoints();
-    
+    // Points are already given per pipe, just show summary
     if (typeof addLog === 'function') {
-        addLog(`🎮 Flappy Points: +${pointsEarned} (Total: ${flappyGame.flappyPoints})`);
+        addLog(`🎮 Game Over! Total Flappy Points: ${flappyGame.flappyPoints}`);
     }
     if (typeof updateDisplay === 'function') {
         updateDisplay();
