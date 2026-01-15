@@ -40,11 +40,22 @@ function loadFriends() {
     // Load friend requests for current user
     const username = currentUser?.username;
     if (username) {
-        // Check for requests sent TO this user
-        const recipientRequests = JSON.parse(localStorage.getItem(`friendRequests_${username}`) || '[]');
-        friendRequests = recipientRequests.filter(r => r.to === username);
+        friendRequests = [];
         
-        // Also check localStorage keys
+        // Method 1: Check user-specific requests
+        const recipientRequests = JSON.parse(localStorage.getItem(`friendRequests_${username}`) || '[]');
+        friendRequests.push(...recipientRequests.filter(r => r.to === username));
+        
+        // Method 2: Check global friend requests list
+        const allRequests = JSON.parse(localStorage.getItem('allFriendRequests') || '[]');
+        const myRequests = allRequests.filter(r => r.to === username);
+        myRequests.forEach(req => {
+            if (!friendRequests.find(r => r.from === req.from && r.to === req.to)) {
+                friendRequests.push(req);
+            }
+        });
+        
+        // Method 3: Check localStorage keys
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key && key.startsWith(`friendRequest_${username}_`)) {
@@ -58,6 +69,11 @@ function loadFriends() {
                 }
             }
         }
+        
+        // Remove duplicates
+        friendRequests = friendRequests.filter((req, index, self) => 
+            index === self.findIndex(r => r.from === req.from && r.to === req.to)
+        );
     }
     
     // Save updated requests
@@ -354,12 +370,19 @@ function sendFriendRequest() {
         timestamp: Date.now()
     };
     
-    // Store request in a way that the recipient can find it
-    // Use a shared key format that both users can access
-    const requestKey = `friendRequest_${username}_${currentUser.username}`;
+    // Store request in multiple ways for cross-browser compatibility
+    // Method 1: User-specific key (for when recipient logs in)
+    const requestKey = `friendRequest_${username}_${currentUser.username}_${Date.now()}`;
     localStorage.setItem(requestKey, JSON.stringify(request));
     
-    // Also add to the recipient's request list
+    // Method 2: Add to global friend requests list (shared storage)
+    const allRequests = JSON.parse(localStorage.getItem('allFriendRequests') || '[]');
+    if (!allRequests.find(r => r.from === currentUser.username && r.to === username)) {
+        allRequests.push(request);
+        localStorage.setItem('allFriendRequests', JSON.stringify(allRequests));
+    }
+    
+    // Method 3: Add to recipient's specific list
     const recipientRequests = JSON.parse(localStorage.getItem(`friendRequests_${username}`) || '[]');
     if (!recipientRequests.find(r => r.from === currentUser.username)) {
         recipientRequests.push(request);
@@ -375,6 +398,7 @@ function sendFriendRequest() {
     
     errorDiv.textContent = `Friend request sent to ${username}!`;
     errorDiv.style.color = '#51cf66';
+    errorDiv.style.fontWeight = 'bold';
     document.getElementById('friend-username-input').value = '';
     
     // Refresh friend list

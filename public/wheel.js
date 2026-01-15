@@ -69,6 +69,33 @@ function showWheelModal() {
         box-shadow: 0 0 50px rgba(255,215,0,0.8);
     `;
     
+    // Create betting input
+    const player = gameState.players[gameState.playerId];
+    const betContainer = document.createElement('div');
+    betContainer.style.cssText = `
+        margin: 20px 0;
+        text-align: center;
+    `;
+    betContainer.innerHTML = `
+        <label style="color: #FFD700; font-weight: bold; font-size: 1.2em; display: block; margin-bottom: 10px;">
+            💰 Bet Amount (You have ${player.money}):
+        </label>
+        <input type="number" id="wheel-bet-input" min="0" max="${player.money}" value="0" style="
+            padding: 15px;
+            font-size: 1.5em;
+            width: 200px;
+            text-align: center;
+            border: 3px solid #FFD700;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.8);
+            color: #FFD700;
+            font-weight: bold;
+        ">
+        <div style="margin-top: 10px; color: #FFD700; font-size: 0.9em;">
+            Win = 2x bet! Lose = lose bet amount
+        </div>
+    `;
+    
     // Create spin button
     const spinButton = document.createElement('button');
     spinButton.textContent = 'SPIN!';
@@ -150,31 +177,54 @@ function showWheelModal() {
     let isSpinning = false;
     spinButton.onclick = () => {
         if (isSpinning) return;
+        
+        // Get bet amount
+        const betInput = document.getElementById('wheel-bet-input');
+        const betAmount = parseInt(betInput.value) || 0;
+        
+        if (betAmount < 0 || betAmount > player.money) {
+            addLog(`Invalid bet! You can bet 0-${player.money}`);
+            return;
+        }
+        
+        // Deduct bet immediately
+        if (betAmount > 0) {
+            player.money -= betAmount;
+            addLog(`💰 You bet ${betAmount} money!`);
+        }
+        
         isSpinning = true;
         spinButton.disabled = true;
+        betInput.disabled = true;
         spinButton.textContent = 'SPINNING...';
         
         // Spin animation
         spinWheelAnimation(canvas, () => {
             // Get result
             const result = getWheelResult();
-            const player = gameState.players[gameState.playerId];
             
-            // Apply result
+            // Apply result with bet multiplier
             if (result.type === 'win') {
-                player.money += result.amount;
-                addLog(`${result.message} +${result.amount} money!`);
+                const winAmount = result.amount + (betAmount * 2); // Bet pays 2x
+                player.money += winAmount;
+                addLog(`${result.message} +${winAmount} money! (${result.amount} + ${betAmount * 2} from bet)`);
             } else if (result.type === 'lose') {
-                player.money = Math.max(0, player.money - result.amount);
-                addLog(`${result.message} -${result.amount} money!`);
+                const loseAmount = result.amount + betAmount; // Lose bet + result amount
+                player.money = Math.max(0, player.money - loseAmount);
+                addLog(`${result.message} -${loseAmount} money! (${result.amount} + ${betAmount} bet)`);
             } else {
-                addLog(result.message);
+                // Neutral - just lose the bet
+                if (betAmount > 0) {
+                    addLog(`🎲 ${result.message} (Lost ${betAmount} bet)`);
+                } else {
+                    addLog(result.message);
+                }
             }
             
             // Show result
             setTimeout(() => {
                 overlay.remove();
-                showWheelResult(result);
+                showWheelResult(result, betAmount);
                 updateDisplay();
             }, 2000);
         });
@@ -185,18 +235,67 @@ function showWheelModal() {
     overlay.appendChild(closeButton);
     overlay.appendChild(infoPanel);
     overlay.appendChild(wheelContainer);
+    overlay.appendChild(betContainer);
     overlay.appendChild(spinButton);
     document.body.appendChild(overlay);
 }
 
 function drawWheel(canvas) {
+    // Draw wheel segments
+    drawWheelSegments(canvas);
+    // Draw pointer on top
+    drawWheelPointer(canvas);
+}
+
+function spinWheelAnimation(canvas, callback) {
+    let rotation = 0;
+    const spins = 5 + Math.random() * 3; // 5-8 full spins
+    const totalRotation = spins * 2 * Math.PI;
+    const duration = 3000; // 3 seconds
+    const startTime = Date.now();
+    
+    function animate() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function (ease-out)
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        rotation = totalRotation * easeOut;
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw wheel with rotation
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(rotation);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+        
+        // Draw wheel segments (without pointer)
+        drawWheelSegments(canvas);
+        
+        ctx.restore();
+        
+        // Draw pointer on top (always visible, not rotated)
+        drawWheelPointer(canvas);
+        
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            callback();
+        }
+    }
+    
+    animate();
+}
+
+function drawWheelSegments(canvas) {
     const ctx = canvas.getContext('2d');
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const radius = 280;
-    
-    // Clear
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     // Calculate total probability
     const totalProb = WHEEL_OUTCOMES.reduce((sum, o) => sum + o.probability, 0);
@@ -240,53 +339,34 @@ function drawWheel(canvas) {
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 5;
     ctx.stroke();
+}
+
+function drawWheelPointer(canvas) {
+    const ctx = canvas.getContext('2d');
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = 280;
     
-    // Draw pointer
+    // Draw pointer - more visible
     ctx.beginPath();
     ctx.moveTo(centerX, centerY - radius - 20);
-    ctx.lineTo(centerX - 20, centerY - radius - 40);
-    ctx.lineTo(centerX + 20, centerY - radius - 40);
+    ctx.lineTo(centerX - 30, centerY - radius - 50);
+    ctx.lineTo(centerX + 30, centerY - radius - 50);
+    ctx.closePath();
+    ctx.fillStyle = '#FF0000';
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+    
+    // Draw pointer highlight
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY - radius - 20);
+    ctx.lineTo(centerX - 15, centerY - radius - 35);
+    ctx.lineTo(centerX + 15, centerY - radius - 35);
     ctx.closePath();
     ctx.fillStyle = '#FFD700';
     ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-}
-
-function spinWheelAnimation(canvas, callback) {
-    let rotation = 0;
-    const spins = 5 + Math.random() * 3; // 5-8 full spins
-    const totalRotation = spins * 2 * Math.PI;
-    const duration = 3000; // 3 seconds
-    const startTime = Date.now();
-    
-    function animate() {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        
-        // Easing function (ease-out)
-        const easeOut = 1 - Math.pow(1 - progress, 3);
-        rotation = totalRotation * easeOut;
-        
-        const ctx = canvas.getContext('2d');
-        ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 2);
-        ctx.rotate(rotation);
-        ctx.translate(-canvas.width / 2, -canvas.height / 2);
-        
-        drawWheel(canvas);
-        
-        ctx.restore();
-        
-        if (progress < 1) {
-            requestAnimationFrame(animate);
-        } else {
-            callback();
-        }
-    }
-    
-    animate();
 }
 
 function getWheelResult() {
@@ -304,10 +384,19 @@ function getWheelResult() {
     return WHEEL_OUTCOMES[0]; // Fallback
 }
 
-function showWheelResult(result) {
+function showWheelResult(result, betAmount = 0) {
     const notification = document.createElement('div');
     const isWin = result.type === 'win';
     const isLose = result.type === 'lose';
+    
+    let totalChange = 0;
+    if (isWin) {
+        totalChange = result.amount + (betAmount * 2);
+    } else if (isLose) {
+        totalChange = -(result.amount + betAmount);
+    } else if (betAmount > 0) {
+        totalChange = -betAmount;
+    }
     
     notification.style.cssText = `
         position: fixed;
@@ -328,7 +417,8 @@ function showWheelResult(result) {
     notification.innerHTML = `
         <div style="font-size: 4em; margin-bottom: 20px;">${isWin ? '🎉' : isLose ? '💸' : '🎲'}</div>
         <h2 style="color: #fff; font-size: 2em; margin-bottom: 20px; text-shadow: 0 0 20px rgba(0,0,0,0.8); font-weight: bold;">${result.message}</h2>
-        ${result.amount !== 0 ? `<p style="color: #fff; font-size: 1.5em; font-weight: bold;">${result.amount > 0 ? '+' : ''}${result.amount} money!</p>` : ''}
+        ${betAmount > 0 ? `<p style="color: #fff; font-size: 1em; margin-bottom: 10px;">Bet: ${betAmount} 💰</p>` : ''}
+        ${totalChange !== 0 ? `<p style="color: #fff; font-size: 1.5em; font-weight: bold;">${totalChange > 0 ? '+' : ''}${totalChange} money!</p>` : ''}
         <button onclick="this.parentElement.remove()" style="
             padding: 15px 40px;
             background: #FFD700;

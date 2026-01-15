@@ -77,6 +77,9 @@
                     <small style="display: block; margin-top: 10px; opacity: 0.7;">Requires server deployment</small>
                 </div>
             </div>
+            <div style="margin-top: 30px; text-align: center;">
+                <button class="btn btn-large" onclick="showLeaderboard()" style="margin: 10px;">🏆 View Leaderboard</button>
+            </div>
         </div>
     </div>
 
@@ -219,6 +222,14 @@
                             <h3>Your Properties</h3>
                             <div id="property-cards" class="cards-grid"></div>
                         </div>
+                        <!-- Flappy Money Mini-Game -->
+                        <div class="flappy-money-section">
+                            <h3>💰 Flappy Money (Free!)</h3>
+                            <div id="flappy-money-container"></div>
+                            <p style="font-size: 0.9em; color: #FFD700; margin-top: 5px; font-weight: bold;">
+                                Click to play! Earn money based on score!
+                            </p>
+                        </div>
                     </div>
                 </div>
 
@@ -277,6 +288,7 @@
     <script src="auth.js"></script>
     <script src="lobby.js"></script>
     <script src="wheel.js"></script>
+    <script src="flappy-money.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

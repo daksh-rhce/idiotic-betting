@@ -657,6 +657,33 @@ header h1 {
     gap: 20px;
 }
 
+.flappy-money-section {
+    background: linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(0,0,0,0.4) 100%);
+    border: 3px solid #FFD700;
+    border-radius: 15px;
+    padding: 15px;
+    margin-top: 20px;
+    text-align: center;
+    width: 100%;
+}
+
+.flappy-money-section h3 {
+    color: #FFD700;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    text-shadow: 0 0 10px rgba(255,215,0,0.5);
+    font-weight: bold;
+}
+
+#flappy-money-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 10px 0;
+    width: 100%;
+    overflow-x: auto;
+}
+
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -951,6 +978,42 @@ header h1 {
 
 .log-content::-webkit-scrollbar-thumb:hover {
     background: #ffed4e;
+}
+
+/* Leaderboard Styles */
+.leaderboard-content {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 20px;
+}
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.leaderboard-entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: rgba(0,0,0,0.5);
+    border: 2px solid #FFD700;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1.1em;
+    transition: all 0.3s;
+}
+
+.leaderboard-entry:hover {
+    background: rgba(255,215,0,0.1);
+    transform: scale(1.02);
+    box-shadow: 0 0 15px rgba(255,215,0,0.5);
+}
+
+.leaderboard-entry span {
+    margin: 0 10px;
 }
 
 /* Lobby Screen */

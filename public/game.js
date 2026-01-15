@@ -569,6 +569,7 @@ function endAuction() {
     gameState.currentPhase = 'action';
     gameState.currentPlayerIndex = 0;
     gameState.chaosCardPlayedThisTurn = false;
+    actionPhaseRoundStarted = true; // Mark that we've started a new action phase round
     
     // Reset chaos card played flags for all players
     gameState.players.forEach(p => p.chaosCardPlayedThisTurn = false);
@@ -588,7 +589,9 @@ function endAuction() {
             addLog("Your turn! You can play one Chaos card.");
         } else {
             setTimeout(() => {
-                if (gameState.currentPhase === 'action' && gameState.currentPlayerIndex === 0) {
+                if (gameState.currentPhase === 'action' && 
+                    gameState.currentPlayerIndex === 0 &&
+                    firstPlayer.id === gameState.players[0].id) {
                     processAITurn(firstPlayer);
                 }
             }, 1500);
@@ -795,7 +798,12 @@ function executeChaosCard(card, cardIndex, targetId) {
     if (moneyHeaderEl) moneyHeaderEl.textContent = `💰 ${player.money}`;
     
     // Advance to next player's turn after playing card
-    setTimeout(() => advanceTurn(), 500);
+    // Small delay to ensure effects are processed
+    setTimeout(() => {
+        if (gameState.currentPhase === 'action') {
+            advanceTurn();
+        }
+    }, 800);
 }
 
 function executeChaosCardEffect(player, card, target) {
@@ -1016,6 +1024,9 @@ function executeChaosCardEffect(player, card, target) {
     updateDisplay();
 }
 
+// Track if we've completed a full round of action phase
+let actionPhaseRoundStarted = false;
+
 function advanceTurn() {
     // Only advance if in action phase
     if (gameState.currentPhase !== 'action') {
@@ -1023,20 +1034,22 @@ function advanceTurn() {
     }
     
     // Move to next player
+    const previousIndex = gameState.currentPlayerIndex;
     gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
     gameState.chaosCardPlayedThisTurn = false;
     
-    // Reset chaos card played flag for all players
-    gameState.players.forEach(p => p.chaosCardPlayedThisTurn = false);
-    
+    // Reset chaos card played flag for current player only
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    if (currentPlayer) {
+        currentPlayer.chaosCardPlayedThisTurn = false;
+    }
     
-    // If we've gone through all players (back to player 0), start next auction
-    if (gameState.currentPlayerIndex === 0 && gameState.currentPhase === 'action') {
-        // Check if this is the first time we're hitting player 0 (meaning all players had a turn)
-        addLog("Action phase complete! Starting next round...");
+    // If we've cycled back to player 0, all players have had a turn
+    if (gameState.currentPlayerIndex === 0 && previousIndex !== 0) {
+        addLog("Action phase complete! All players have had a turn. Starting next round...");
         setTimeout(() => {
             gameState.round++;
+            actionPhaseRoundStarted = false;
             processIncomePhase();
             updateDisplay();
             setTimeout(() => {
@@ -1047,25 +1060,31 @@ function advanceTurn() {
                 }
             }, 2000);
         }, 1500);
-    } else if (gameState.currentPhase === 'action') {
-        // Next player's turn
-        if (currentPlayer && currentPlayer.id === gameState.playerId) {
+        return;
+    }
+    
+    // Next player's turn
+    if (currentPlayer) {
+        if (currentPlayer.id === gameState.playerId) {
             // Human player's turn
             if (currentPlayer.chaosCards.length > 0) {
                 const btn = document.getElementById('play-chaos-btn');
                 if (btn) btn.disabled = false;
             }
             addLog(`Your turn! You can play a Chaos card.`);
-        } else if (currentPlayer) {
+        } else {
             // AI player's turn - they can play chaos card
             setTimeout(() => {
-                if (gameState.currentPhase === 'action' && gameState.currentPlayerIndex === gameState.players.indexOf(currentPlayer)) {
+                // Double-check it's still this player's turn
+                if (gameState.currentPhase === 'action' && 
+                    gameState.currentPlayerIndex === gameState.players.indexOf(currentPlayer) &&
+                    currentPlayer.id === gameState.players[gameState.currentPlayerIndex].id) {
                     processAITurn(currentPlayer);
                 }
             }, 1000);
         }
-        updateDisplay();
     }
+    updateDisplay();
 }
 
 function processAITurn(aiPlayer) {
@@ -1088,7 +1107,7 @@ function processAITurn(aiPlayer) {
         return;
     }
     
-    // NEW APPROACH: Decision tree with clear priorities
+    // FIXED APPROACH: Simple, reliable decision tree
     let cardToPlay = null;
     let targetId = null;
     
@@ -1120,6 +1139,42 @@ function processAITurn(aiPlayer) {
             }
         }
     }
+    
+    // Priority 3: If no specific strategy, play a random useful card
+    if (!cardToPlay) {
+        // Filter out cards that need targets if no valid targets
+        const playableCards = aiPlayer.chaosCards.filter(c => {
+            if (c.needsTarget) {
+                return gameState.players.some(p => p.id !== aiPlayer.id);
+            }
+            return true;
+        });
+        
+        if (playableCards.length > 0) {
+            cardToPlay = playableCards[Math.floor(Math.random() * playableCards.length)];
+            if (cardToPlay.needsTarget) {
+                // Pick random target (not self)
+                const targets = gameState.players.filter(p => p.id !== aiPlayer.id);
+                if (targets.length > 0) {
+                    targetId = targets[Math.floor(Math.random() * targets.length)].id;
+                }
+            }
+        }
+    }
+    
+    // Execute the card
+    if (cardToPlay) {
+        const index = aiPlayer.chaosCards.indexOf(cardToPlay);
+        if (index !== -1) {
+            executeChaosCardForAI(aiPlayer, cardToPlay, index, targetId);
+            setTimeout(() => advanceTurn(), 1200);
+            return;
+        }
+    }
+    
+    // If we get here, skip turn
+    addLog(`${aiPlayer.name} has no playable cards`);
+    setTimeout(() => advanceTurn(), 800);
     
     // Priority 3: Can complete a task with Fast-Track
     if (!cardToPlay) {
@@ -1154,8 +1209,22 @@ function processAITurn(aiPlayer) {
     if (cardToPlay) {
         const index = aiPlayer.chaosCards.indexOf(cardToPlay);
         if (index !== -1) {
-            executeChaosCardForAI(aiPlayer, cardToPlay, index, targetId);
-            setTimeout(() => advanceTurn(), 1200);
+            // Verify card still exists
+            if (aiPlayer.chaosCards[index] && aiPlayer.chaosCards[index].name === cardToPlay.name) {
+                executeChaosCardForAI(aiPlayer, cardToPlay, index, targetId);
+                // advanceTurn is called inside executeChaosCardForAI via executeChaosCardEffect
+                // But add a safety timeout just in case
+                setTimeout(() => {
+                    if (gameState.currentPhase === 'action' && 
+                        gameState.currentPlayerIndex === expectedIndex &&
+                        !gameState.chaosCardPlayedThisTurn) {
+                        advanceTurn();
+                    }
+                }, 1500);
+            } else {
+                addLog(`${aiPlayer.name} card not found, skipping turn.`);
+                setTimeout(() => advanceTurn(), 800);
+            }
         } else {
             addLog(`${aiPlayer.name} decides not to play a card.`);
             setTimeout(() => advanceTurn(), 800);
@@ -1582,11 +1651,38 @@ function endGame() {
     addLog("=== GAME OVER ===");
     if (winners.length === 1) {
         addLog(`🏆 Winner: ${winners[0].name} with ${winners[0].completedTasks.length} completed tasks!`);
+        // Update leaderboard for winner
+        if (typeof updateLeaderboard === 'function') {
+            updateLeaderboard(winners[0].name);
+        }
     } else {
         addLog(`🏆 Shared Victory! Winners: ${winners.map(w => w.name).join(', ')}`);
+        // Update leaderboard for all winners
+        winners.forEach(winner => {
+            if (typeof updateLeaderboard === 'function') {
+                updateLeaderboard(winner.name);
+            }
+        });
     }
     
     updateDisplay();
+    
+    // Show leaderboard button after game ends
+    setTimeout(() => {
+        const controlsSection = document.querySelector('.controls-section');
+        if (controlsSection) {
+            let leaderboardBtn = document.getElementById('show-leaderboard-btn');
+            if (!leaderboardBtn) {
+                leaderboardBtn = document.createElement('button');
+                leaderboardBtn.id = 'show-leaderboard-btn';
+                leaderboardBtn.className = 'btn btn-large';
+                leaderboardBtn.textContent = '🏆 View Leaderboard';
+                leaderboardBtn.onclick = showLeaderboard;
+                leaderboardBtn.style.cssText = 'margin: 20px auto; display: block; font-weight: bold;';
+                controlsSection.appendChild(leaderboardBtn);
+            }
+        }
+    }, 2000);
 }
 
 // Sell property function
