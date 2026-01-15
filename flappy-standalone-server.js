@@ -62,6 +62,9 @@ app.get('/', (req, res) => {
         <div style="margin-bottom: 10px;">
             <button onclick="toggleFlappyFullscreen()" style="padding: 10px 20px; background: #FFD700; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1em;">⛶ Fullscreen</button>
         </div>
+        <div id="flappy-points-display" style="color: #FFD700; font-weight: bold; margin-bottom: 10px; font-size: 1.1em;">
+            🎮 Flappy Points: <span id="flappy-points-count">0</span>
+        </div>
         <div id="flappy-container"></div>
         <div class="info">
             <p>Click to play! Earn 1 flappy point per pipe! (Spacebar in fullscreen)</p>
@@ -264,7 +267,7 @@ app.get('/', (req, res) => {
                 if (pipe.x + pipe.width < flappyGame.moneyBag.x && !pipe.passed) {
                     pipe.passed = true;
                     flappyGame.score++;
-                    flappyGame.money += 10;
+                    flappyGame.flappyPoints += 1; // Earn 1 flappy point per pipe
                     createMoneyParticle(pipe.x + pipe.width / 2, pipe.topHeight + flappyGame.pipeGap / 2);
                 }
                 
@@ -533,9 +536,17 @@ app.get('/', (req, res) => {
             }
         });
 
+        function updateFlappyPointsDisplay() {
+            const display = document.getElementById('flappy-points-count');
+            if (display) {
+                display.textContent = flappyGame.flappyPoints || 0;
+            }
+        }
+
         function gameLoop() {
             updateFlappyGame();
             drawFlappyGame();
+            updateFlappyPointsDisplay();
             requestAnimationFrame(gameLoop);
         }
 
