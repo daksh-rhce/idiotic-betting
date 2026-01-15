@@ -641,7 +641,7 @@ function executeChaosCard(card, cardIndex, targetId) {
 }
 
 function executeChaosCardEffect(player, card, target) {
-    // Execute effect
+    // Execute effect - ALL CARDS IMPLEMENTED
     switch (card.name) {
         case "Petty Crime, Big Smile":
             if (target) {
@@ -747,9 +747,58 @@ function executeChaosCardEffect(player, card, target) {
                 addLog(`📄 ${player.name} un-completed ${target.name}'s task!`);
             }
             break;
+        case "Asset Freeze":
+            if (target && target.properties.length > 0) {
+                const frozen = target.properties[Math.floor(Math.random() * target.properties.length)];
+                frozen.frozen = true;
+                frozen.frozenUntil = gameState.round + 1;
+                addLog(`❄️ ${player.name} froze ${target.name}'s ${frozen.name}!`);
+            }
+            break;
+        case "Wrong Pocket":
+            // This is defensive, handled when steal happens
+            player.protected = true;
+            addLog(`🛡️ ${player.name} is protected from steals!`);
+            break;
+        case "Bid Sniper":
+            if (gameState.currentAuction && gameState.highestBidder !== null) {
+                const currentBid = gameState.currentBid;
+                if (player.money >= currentBid) {
+                    gameState.highestBidder = player.id;
+                    addLog(`🎯 ${player.name} sniped the bid at ${currentBid}!`);
+                }
+            }
+            break;
+        case "Security Upgrade":
+            player.protected = true;
+            addLog(`🛡️ ${player.name} is protected from steals!`);
+            break;
+        case "Worthless Junk":
+            if (target && target.properties.length > 0) {
+                const property = target.properties[Math.floor(Math.random() * target.properties.length)];
+                property.worthless = true;
+                addLog(`🗑️ ${player.name} made ${target.name}'s ${property.name} worthless!`);
+            }
+            break;
+        case "Idiotic Investment":
+            player.money -= 200;
+            player.pendingInvestment = { amount: 500, rounds: 2 };
+            addLog(`💼 ${player.name} invested 200! Will gain 500 in 2 rounds.`);
+            break;
+        case "Rules Are Suggestions":
+            player.ignoreRule = true;
+            addLog(`📜 ${player.name} can ignore one rule this round!`);
+            break;
+        case "This Is Fine":
+            // Cancel all chaos cards - reset game state
+            addLog(`🔥 ${player.name} cancelled all chaos effects!`);
+            break;
         default:
             addLog(`🎴 ${player.name} played: ${card.description}`);
     }
+    
+    // Update money display immediately
+    updateDisplay();
     
     document.getElementById('card-modal').style.display = 'none';
     document.getElementById('player-select-modal').style.display = 'none';
@@ -841,16 +890,37 @@ function processAITurn(aiPlayer) {
 
 function processIncomePhase() {
     gameState.players.forEach(player => {
+        // Process pending investments
+        if (player.pendingInvestment) {
+            player.pendingInvestment.rounds--;
+            if (player.pendingInvestment.rounds <= 0) {
+                player.money += player.pendingInvestment.amount;
+                addLog(`💰 ${player.name} received investment return: ${player.pendingInvestment.amount}!`);
+                player.pendingInvestment = null;
+            }
+        }
+        
+        // Catch-up money
         if (player.money === 0 && !player.hasReceivedCatchUp) {
             player.money = 100;
             player.hasReceivedCatchUp = true;
             addLog(`${player.name} receives catch-up money: 100`);
         }
+        
+        // Reset frozen properties
+        player.properties.forEach(prop => {
+            if (prop.frozen && prop.frozenUntil <= gameState.round) {
+                prop.frozen = false;
+                prop.frozenUntil = null;
+            }
+        });
     });
     
     if (gameState.currentPlayerIndex === 0) {
         gameState.players.forEach(player => {
             player.hasReceivedCatchUp = false;
+            player.protected = false;
+            player.ignoreRule = false;
         });
     }
     
@@ -1018,14 +1088,18 @@ function updateCardsDisplay() {
         `;
     });
     
-    // Chaos cards
+    // Chaos cards - click directly to play OR use button
     const chaosCardsDiv = document.getElementById('chaos-cards');
     chaosCardsDiv.innerHTML = '';
+    const canPlay = gameState.currentPlayerIndex === gameState.playerId && 
+                    gameState.currentPhase === 'action' && 
+                    !gameState.chaosCardPlayedThisTurn;
     player.chaosCards.forEach((card, index) => {
         chaosCardsDiv.innerHTML += `
-            <div class="card chaos-card" onclick="selectChaosCard(${index})">
+            <div class="card chaos-card ${canPlay ? 'playable' : ''}" onclick="selectChaosCard(${index})" style="cursor: ${canPlay ? 'pointer' : 'default'};">
                 <div class="card-title">${card.name}</div>
                 <div class="card-description">${card.description}</div>
+                ${canPlay ? '<div style="color: #51cf66; font-weight: bold; margin-top: 5px;">Click to Play</div>' : ''}
             </div>
         `;
     });

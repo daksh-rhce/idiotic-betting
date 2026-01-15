@@ -2,10 +2,16 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-weight: bold;
+}
+
+body, p, span, div, h1, h2, h3, h4, h5, h6, button, input, label {
+    font-weight: bold;
 }
 
 body {
     font-family: 'Georgia', 'Times New Roman', serif;
+    font-weight: bold;
     background: 
         radial-gradient(ellipse at center, #0d4d0d 0%, #0a3d0a 50%, #052505 100%),
         repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,50,0,0.1) 2px, rgba(0,50,0,0.1) 4px);
@@ -291,6 +297,51 @@ header h1 {
     font-size: 1.2em;
     border: 2px solid #FFD700;
     color: #FFD700;
+    font-weight: bold;
+}
+
+.wheel-container {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.wheel-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FFD700 0%, #f59f00 100%);
+    border: 3px solid #fff;
+    font-size: 2em;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 0 20px rgba(255,215,0,0.6);
+    font-weight: bold;
+}
+
+.wheel-btn:hover:not(:disabled) {
+    transform: scale(1.1);
+    box-shadow: 0 0 30px rgba(255,215,0,0.9);
+}
+
+.wheel-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes taskCompletePulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.1); }
+}
+
+@keyframes wheelResultPulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.05); }
 }
 
 .main-game-area {
@@ -667,9 +718,32 @@ header h1 {
 }
 
 .card-description {
-    font-size: 0.85em;
-    color: #ccc;
+    font-size: 0.9em;
+    color: #fff;
     flex: 1;
+    font-weight: bold;
+}
+
+.card.playable {
+    border: 3px solid #51cf66;
+    box-shadow: 0 0 20px rgba(81,207,102,0.5);
+    animation: playablePulse 2s infinite;
+}
+
+@keyframes playablePulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(81,207,102,0.5); }
+    50% { box-shadow: 0 0 30px rgba(81,207,102,0.8); }
+}
+
+.card.ready-to-complete {
+    border: 3px solid #FFD700;
+    box-shadow: 0 0 25px rgba(255,215,0,0.6);
+    animation: readyPulse 1.5s infinite;
+}
+
+@keyframes readyPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
 }
 
 .controls-section {
