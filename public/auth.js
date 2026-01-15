@@ -175,6 +175,29 @@ window.showRegister = showRegister;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if game is in progress
+    const savedGameState = localStorage.getItem('gameState');
+    const savedPhase = localStorage.getItem('gamePhase');
+    
+    if (savedGameState && savedPhase && savedPhase !== 'setup') {
+        // Game in progress - restore it
+        try {
+            const restored = JSON.parse(savedGameState);
+            if (restored.players && restored.players.length > 0) {
+                // Restore game state
+                Object.assign(gameState, restored);
+                playerName = localStorage.getItem('playerName') || 'You';
+                showScreen('game-screen');
+                updateDisplay();
+                addLog('Game restored from previous session!');
+                return;
+            }
+        } catch (e) {
+            console.warn('Could not restore game state:', e);
+        }
+    }
+    
+    // Normal auth flow
     if (!checkAuth()) {
         showScreen('login-screen');
     } else {

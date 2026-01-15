@@ -36,10 +36,32 @@ function loadFriends() {
     if (stored) {
         friendsList = JSON.parse(stored);
     }
-    const requestsStored = localStorage.getItem('friendRequests');
-    if (requestsStored) {
-        friendRequests = JSON.parse(requestsStored);
+    
+    // Load friend requests for current user
+    const username = currentUser?.username;
+    if (username) {
+        // Check for requests sent TO this user
+        const recipientRequests = JSON.parse(localStorage.getItem(`friendRequests_${username}`) || '[]');
+        friendRequests = recipientRequests.filter(r => r.to === username);
+        
+        // Also check localStorage keys
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(`friendRequest_${username}_`)) {
+                try {
+                    const req = JSON.parse(localStorage.getItem(key));
+                    if (req && req.to === username && !friendRequests.find(r => r.from === req.from)) {
+                        friendRequests.push(req);
+                    }
+                } catch (e) {
+                    // Skip invalid
+                }
+            }
+        }
     }
+    
+    // Save updated requests
+    saveFriends();
 }
 
 // Save friends to localStorage
@@ -89,7 +111,14 @@ function createLobby() {
         return;
     }
     
-    // Create lobby (in real implementation, this would go to server)
+    // Check if lobby already exists
+    const existing = localStorage.getItem(`lobby_${lobbyName}`);
+    if (existing) {
+        errorDiv.textContent = 'Lobby name already taken!';
+        return;
+    }
+    
+    // Create lobby
     currentLobby = {
         name: lobbyName,
         password: password,
@@ -99,21 +128,69 @@ function createLobby() {
             name: playerName || currentUser.username,
             isLeader: true
         }],
-        maxPlayers: 4
+        maxPlayers: 4,
+        createdAt: Date.now()
     };
     
-    // Store in localStorage (in production, use server)
+    // Store in localStorage with key for easy lookup
     localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
+    localStorage.setItem(`lobby_${lobbyName}`, JSON.stringify(currentLobby));
     
     displayCurrentLobby();
     addLog(`Created lobby: ${lobbyName}`);
+    
+    // Refresh available lobbies for others
+    if (typeof loadAvailableLobbies === 'function') {
+        setTimeout(loadAvailableLobbies, 500);
+    }
 }
 
 function loadAvailableLobbies() {
-    // In production, fetch from server
-    // For now, show message
+    // Load all lobbies from localStorage (shared across tabs)
     const lobbiesDiv = document.getElementById('available-lobbies');
-    lobbiesDiv.innerHTML = '<p style="color: #FFD700;">Available lobbies will appear here when other players create them.</p>';
+    lobbiesDiv.innerHTML = '';
+    
+    // Get all lobby keys from localStorage
+    const allLobbies = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('lobby_')) {
+            try {
+                const lobby = JSON.parse(localStorage.getItem(key));
+                if (lobby && lobby.name && lobby.players) {
+                    // Only show lobbies that aren't full and aren't the current user's
+                    if (lobby.players.length < lobby.maxPlayers && 
+                        !lobby.players.some(p => p.id === currentUser?.username)) {
+                        allLobbies.push(lobby);
+                    }
+                }
+            } catch (e) {
+                // Skip invalid entries
+            }
+        }
+    }
+    
+    if (allLobbies.length === 0) {
+        lobbiesDiv.innerHTML = '<p style="color: #FFD700;">No available lobbies. Create one or ask a friend to create one!</p>';
+    } else {
+        allLobbies.forEach(lobby => {
+            const lobbyDiv = document.createElement('div');
+            lobbyDiv.className = 'lobby-item';
+            lobbyDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: rgba(0,0,0,0.5); border: 2px solid #FFD700; border-radius: 10px;';
+            lobbyDiv.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 10px;">${lobby.name}</div>
+                <div>Players: ${lobby.players.length}/${lobby.maxPlayers}</div>
+                <div>Leader: ${lobby.leader}</div>
+                <button class="btn btn-small" onclick="joinLobbyByName('${lobby.name}')" style="margin-top: 10px;">Join</button>
+            `;
+            lobbiesDiv.appendChild(lobbyDiv);
+        });
+    }
+}
+
+function joinLobbyByName(lobbyName) {
+    document.getElementById('join-lobby-name').value = lobbyName;
+    joinLobby();
 }
 
 function joinLobby() {
@@ -270,18 +347,38 @@ function sendFriendRequest() {
         return;
     }
     
-    // In production, send to server
-    // For now, store locally
+    // Create request
     const request = {
         from: currentUser.username,
         to: username,
         timestamp: Date.now()
     };
     
-    // Store request (in production, server handles this)
-    localStorage.setItem(`friendRequest_${username}`, JSON.stringify(request));
+    // Store request in a way that the recipient can find it
+    // Use a shared key format that both users can access
+    const requestKey = `friendRequest_${username}_${currentUser.username}`;
+    localStorage.setItem(requestKey, JSON.stringify(request));
+    
+    // Also add to the recipient's request list
+    const recipientRequests = JSON.parse(localStorage.getItem(`friendRequests_${username}`) || '[]');
+    if (!recipientRequests.find(r => r.from === currentUser.username)) {
+        recipientRequests.push(request);
+        localStorage.setItem(`friendRequests_${username}`, JSON.stringify(recipientRequests));
+    }
+    
+    // Update local friend requests list
+    loadFriends();
+    if (!friendRequests.find(r => r.to === username && r.from === currentUser.username)) {
+        friendRequests.push(request);
+        saveFriends();
+    }
+    
     errorDiv.textContent = `Friend request sent to ${username}!`;
+    errorDiv.style.color = '#51cf66';
     document.getElementById('friend-username-input').value = '';
+    
+    // Refresh friend list
+    setTimeout(loadFriendsList, 500);
 }
 
 function acceptFriendRequest(fromUsername) {
@@ -314,6 +411,7 @@ window.showJoinLobby = showJoinLobby;
 window.showFriendsLobby = showFriendsLobby;
 window.createLobby = createLobby;
 window.joinLobby = joinLobby;
+window.joinLobbyByName = joinLobbyByName;
 window.kickPlayer = kickPlayer;
 window.startLobbyGame = startLobbyGame;
 window.leaveLobby = leaveLobby;
