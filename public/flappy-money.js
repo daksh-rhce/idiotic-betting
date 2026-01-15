@@ -150,10 +150,12 @@ function initFlappyMoney() {
     
     // Load themes and points
     loadOwnedThemes();
-    updateFlappyPointsDisplay();
     
     // Clear container first
     container.innerHTML = '';
+    
+    // Update points display after container is ready
+    setTimeout(() => updateFlappyPointsDisplay(), 100);
     
     // Create canvas - full width responsive
     flappyGame.canvas = document.createElement('canvas');
