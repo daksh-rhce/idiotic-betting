@@ -1,0 +1,17 @@
+{
+  "name": "idiotic-betting",
+  "version": "1.0.0",
+  "description": "Idiotic Betting - A chaotic auction-and-sabotage card game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.5.4",
+    "nodemailer": "^6.9.7",
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.2"
+  }
+}
+

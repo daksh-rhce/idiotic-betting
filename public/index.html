@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idiotic Betting - Card Game</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+        <div class="login-container">
+            <h1>🎲 Idiotic Betting</h1>
+            <div class="auth-tabs">
+                <button class="tab-btn active" onclick="showLogin()">Login</button>
+                <button class="tab-btn" onclick="showRegister()">Register</button>
+            </div>
+            
+            <div id="login-form" class="auth-form">
+                <input type="email" id="login-email" placeholder="Gmail Address" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button class="btn btn-large" onclick="handleLogin()">Login</button>
+                <div id="login-error" class="error-message"></div>
+            </div>
+            
+            <div id="register-form" class="auth-form" style="display: none;">
+                <input type="email" id="register-email" placeholder="Gmail Address" required>
+                <input type="password" id="register-password" placeholder="Password" required>
+                <button class="btn btn-large" onclick="handleRegister()">Register</button>
+                <div id="register-error" class="error-message"></div>
+                <div id="register-success" class="success-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Name Selection Screen -->
+    <div id="name-screen" class="screen">
+        <div class="name-container">
+            <h1>Choose Your Name</h1>
+            <input type="text" id="player-name-input" placeholder="Enter your name" maxlength="20">
+            <button class="btn btn-large" onclick="setPlayerName()">Continue</button>
+        </div>
+    </div>
+
+    <!-- Game Mode Selection -->
+    <div id="mode-screen" class="screen">
+        <div class="mode-container">
+            <h1>Select Game Mode</h1>
+            <div class="mode-options">
+                <div class="mode-card" onclick="selectMode('solo')">
+                    <h2>🤖 Solo Mode</h2>
+                    <p>Play against AI bots</p>
+                </div>
+                <div class="mode-card" onclick="selectMode('online')">
+                    <h2>🌐 Online Mode</h2>
+                    <p>Play against other players</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Card Selection Screen -->
+    <div id="task-selection-screen" class="screen">
+        <div class="selection-container">
+            <h1>Select 5 Task Cards</h1>
+            <p class="instruction">Click on 5 task cards to add them to your hand</p>
+            <div id="task-selection-grid" class="cards-grid"></div>
+            <div class="selection-info">
+                <p>Selected: <span id="selected-count">0</span> / 5</p>
+                <button id="confirm-tasks-btn" class="btn btn-large" disabled onclick="confirmTaskSelection()">Confirm Selection</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Game Screen -->
+    <div id="game-screen" class="screen">
+        <div class="game-container">
+            <header>
+                <h1>🎲 Idiotic Betting</h1>
+                <div class="game-info">
+                    <div class="phase-display">
+                        <span id="current-phase">Waiting...</span>
+                    </div>
+                    <div class="round-info">
+                        Round: <span id="round-number">0</span>
+                    </div>
+                    <div class="player-info-header">
+                        <span id="player-name-display"></span> | 
+                        <span id="player-money-header">💰 500</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="main-game-area">
+                <!-- Auction Area -->
+                <div class="auction-section">
+                    <h2>Current Auction</h2>
+                    <div id="auction-property" class="property-card auction-card">
+                        <p class="placeholder">Waiting for property...</p>
+                    </div>
+                    <div class="auction-controls">
+                        <div class="current-bid">
+                            Current Bid: <span id="current-bid">50</span>
+                        </div>
+                        <div class="bid-controls">
+                            <button id="bid-btn" class="btn btn-primary" disabled>Bid</button>
+                            <button id="pass-btn" class="btn btn-secondary" disabled>Pass</button>
+                        </div>
+                        <div id="bidding-status" class="bidding-status"></div>
+                    </div>
+                    <div id="bidding-order" class="bidding-order"></div>
+                </div>
+
+                <!-- Active Property Effects -->
+                <div class="effects-section">
+                    <h2>Active Property Effects</h2>
+                    <div id="active-effects" class="effects-display"></div>
+                </div>
+
+                <!-- Players Area -->
+                <div class="players-section">
+                    <h2>Players</h2>
+                    <div id="players-container" class="players-grid"></div>
+                </div>
+
+                <!-- Your Hand -->
+                <div class="hand-section">
+                    <h2>Your Hand</h2>
+                    <div class="hand-info">
+                        <div>Money: <span id="player-money">500</span></div>
+                        <div>Tasks Completed: <span id="tasks-completed">0</span></div>
+                        <div>Properties Owned: <span id="properties-owned">0</span></div>
+                    </div>
+                    <div class="cards-container">
+                        <div class="task-cards-section">
+                            <h3>Task Cards</h3>
+                            <div id="task-cards" class="cards-grid"></div>
+                        </div>
+                        <div class="chaos-cards-section">
+                            <h3>Chaos Cards</h3>
+                            <div id="chaos-cards" class="cards-grid"></div>
+                        </div>
+                        <div class="property-cards-section">
+                            <h3>Your Properties</h3>
+                            <div id="property-cards" class="cards-grid"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Controls -->
+                <div class="controls-section">
+                    <button id="play-chaos-btn" class="btn btn-large" disabled>Play Chaos Card (1 per turn)</button>
+                    <button id="sell-property-btn" class="btn btn-large" disabled>Sell Property</button>
+                </div>
+
+                <!-- Game Log -->
+                <div class="log-section">
+                    <h2>Game Log</h2>
+                    <div id="game-log" class="log-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="card-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <div id="player-select-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3 id="modal-title">Select Target</h3>
+            <div id="player-select-options"></div>
+        </div>
+    </div>
+
+    <div id="bid-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Place Your Bid</h3>
+            <p>Minimum bid: <span id="min-bid-display">50</span></p>
+            <p>Your money: <span id="your-money-display">500</span></p>
+            <input type="number" id="bid-amount-input" placeholder="Enter bid amount" min="50">
+            <button class="btn btn-primary" onclick="submitBid()">Submit Bid</button>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
