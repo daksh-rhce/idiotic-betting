@@ -955,6 +955,50 @@ function updateDisplay() {
     // Update cards
     updateCardsDisplay();
     updateActiveEffects();
+    
+    // Update button states
+    updateButtonStates();
+}
+
+function updateButtonStates() {
+    const player = gameState.players[gameState.playerId];
+    if (!player) return;
+    
+    const bidBtn = document.getElementById('bid-btn');
+    const passBtn = document.getElementById('pass-btn');
+    const playChaosBtn = document.getElementById('play-chaos-btn');
+    const sellPropertyBtn = document.getElementById('sell-property-btn');
+    
+    // Bid/Pass buttons - only enabled during auction phase on player's turn
+    if (gameState.currentPhase === 'auction') {
+        const isPlayerTurn = gameState.biddingOrder[gameState.currentBidderIndex]?.id === gameState.playerId;
+        const canBid = player.money >= gameState.currentBid + 50;
+        
+        if (bidBtn) {
+            bidBtn.disabled = !isPlayerTurn || !canBid || gameState.gameEnded;
+        }
+        if (passBtn) {
+            passBtn.disabled = !isPlayerTurn || gameState.gameEnded;
+        }
+    } else {
+        if (bidBtn) bidBtn.disabled = true;
+        if (passBtn) passBtn.disabled = true;
+    }
+    
+    // Play Chaos Card - only on player's turn in action phase
+    if (playChaosBtn) {
+        const isPlayerTurn = gameState.currentPlayerIndex === gameState.playerId;
+        const inActionPhase = gameState.currentPhase === 'action';
+        const hasCards = player.chaosCards.length > 0;
+        const notPlayed = !gameState.chaosCardPlayedThisTurn;
+        
+        playChaosBtn.disabled = !isPlayerTurn || !inActionPhase || !hasCards || !notPlayed || gameState.gameEnded;
+    }
+    
+    // Sell Property - always available if player has properties
+    if (sellPropertyBtn) {
+        sellPropertyBtn.disabled = player.properties.length === 0 || gameState.gameEnded;
+    }
 }
 
 function updateCardsDisplay() {
