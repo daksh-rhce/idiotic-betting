@@ -786,14 +786,13 @@ function advanceTurn() {
 }
 
 function processAITurn(aiPlayer) {
-    // AI decides whether to play a chaos card
+    // NPC: Always plays a chaos card if available to keep game moving
     if (aiPlayer.chaosCardPlayedThisTurn || aiPlayer.chaosCards.length === 0) {
-        setTimeout(() => advanceTurn(), 1000);
+        setTimeout(() => advanceTurn(), 800);
         return;
     }
     
-    // AI scenarios for playing chaos cards
-    // Scenario 1: Low money - use money card
+    // NPC Priority 1: Low money - use money card
     if (aiPlayer.money < 200) {
         const moneyCard = aiPlayer.chaosCards.find(c => 
             c.name === "Accounting Error (In Your Favor)" || 
@@ -802,40 +801,42 @@ function processAITurn(aiPlayer) {
         if (moneyCard) {
             const index = aiPlayer.chaosCards.indexOf(moneyCard);
             executeChaosCardForAI(aiPlayer, moneyCard, index, null);
-            setTimeout(() => advanceTurn(), 1500);
+            setTimeout(() => advanceTurn(), 1200);
             return;
         }
     }
     
-    // Scenario 2: Human player winning - sabotage
+    // NPC Priority 2: Human player winning - sabotage (80% chance)
     const humanPlayer = gameState.players[gameState.playerId];
-    if (humanPlayer.completedTasks.length > aiPlayer.completedTasks.length + 1) {
+    if (humanPlayer && humanPlayer.completedTasks.length > aiPlayer.completedTasks.length) {
         const sabotageCard = aiPlayer.chaosCards.find(c => 
             c.name === "Unexpected Fine" || 
-            c.name === "Lost the Paperwork"
+            c.name === "Lost the Paperwork" ||
+            c.name === "Petty Crime, Big Smile"
         );
-        if (sabotageCard) {
+        if (sabotageCard && Math.random() < 0.8) {
             const index = aiPlayer.chaosCards.indexOf(sabotageCard);
-            executeChaosCardForAI(aiPlayer, sabotageCard, index, gameState.playerId);
-            setTimeout(() => advanceTurn(), 1500);
+            const target = sabotageCard.needsTarget ? gameState.playerId : null;
+            executeChaosCardForAI(aiPlayer, sabotageCard, index, target);
+            setTimeout(() => advanceTurn(), 1200);
             return;
         }
     }
     
-    // Scenario 3: 30% chance to play random card
-    if (Math.random() < 0.3 && aiPlayer.chaosCards.length > 0) {
+    // NPC Priority 3: 70% chance to play any card (keep game moving)
+    if (Math.random() < 0.7 && aiPlayer.chaosCards.length > 0) {
         const randomCard = aiPlayer.chaosCards[Math.floor(Math.random() * aiPlayer.chaosCards.length)];
         const index = aiPlayer.chaosCards.indexOf(randomCard);
         const target = randomCard.needsTarget ? 
             gameState.players.find(p => p.id !== aiPlayer.id && p.id === gameState.playerId)?.id || 
             gameState.players.find(p => p.id !== aiPlayer.id)?.id : null;
         executeChaosCardForAI(aiPlayer, randomCard, index, target);
-        setTimeout(() => advanceTurn(), 1500);
+        setTimeout(() => advanceTurn(), 1200);
         return;
     }
     
     // Skip turn
-    setTimeout(() => advanceTurn(), 1000);
+    setTimeout(() => advanceTurn(), 800);
 }
 
 function processIncomePhase() {
@@ -1225,6 +1226,36 @@ function sellPropertyAt(index) {
     updateDisplay();
 }
 
+function showLeaderboard() {
+    const modal = document.getElementById('leaderboard-modal');
+    const content = document.getElementById('leaderboard-content');
+    
+    if (typeof loadLeaderboard === 'function') {
+        loadLeaderboard();
+    }
+    
+    const stored = localStorage.getItem('leaderboard');
+    const leaderboard = stored ? JSON.parse(stored) : [];
+    
+    if (leaderboard.length === 0) {
+        content.innerHTML = '<p style="color: #FFD700;">No wins recorded yet. Play games to appear on the leaderboard!</p>';
+    } else {
+        content.innerHTML = '<div class="leaderboard-list">';
+        leaderboard.slice(0, 10).forEach((entry, index) => {
+            content.innerHTML += `
+                <div class="leaderboard-entry">
+                    <span style="font-weight: bold; color: #FFD700;">#${index + 1}</span>
+                    <span>${entry.username}</span>
+                    <span style="color: #51cf66;">${entry.wins} ${entry.wins === 1 ? 'win' : 'wins'}</span>
+                </div>
+            `;
+        });
+        content.innerHTML += '</div>';
+    }
+    
+    modal.style.display = 'block';
+}
+
 // Global functions for onclick handlers
 window.selectChaosCard = selectChaosCard;
 window.submitBid = submitBid;
@@ -1238,6 +1269,7 @@ window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
 window.showLogin = showLogin;
 window.showRegister = showRegister;
+window.showLeaderboard = showLeaderboard;
 
 // Modal close handlers and button event listeners
 document.addEventListener('DOMContentLoaded', () => {

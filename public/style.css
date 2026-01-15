@@ -952,10 +952,27 @@ header h1 {
 .leaderboard-entry {
     display: flex;
     justify-content: space-between;
-    padding: 10px;
-    margin: 5px 0;
+    align-items: center;
+    padding: 12px;
+    margin: 8px 0;
     background: rgba(0,0,0,0.5);
-    border: 1px solid #FFD700;
-    border-radius: 5px;
+    border: 2px solid #FFD700;
+    border-radius: 8px;
     color: #FFD700;
+    transition: all 0.3s;
+}
+
+.leaderboard-entry:hover {
+    background: rgba(0,100,0,0.3);
+    transform: translateX(5px);
+    box-shadow: 0 0 15px rgba(255,215,0,0.3);
+}
+
+.leaderboard-list {
+    margin-top: 20px;
+}
+
+.leaderboard-content {
+    color: #FFD700;
+    text-align: left;
 }
