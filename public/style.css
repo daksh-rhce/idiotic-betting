@@ -746,6 +746,19 @@ header h1 {
     50% { transform: scale(1.02); }
 }
 
+.card.completed-task {
+    border: 3px solid #51cf66;
+    box-shadow: 0 0 25px rgba(81,207,102,0.6);
+    background: linear-gradient(135deg, rgba(81,207,102,0.2) 0%, rgba(40,167,69,0.2) 100%);
+}
+
+.card.frozen-property {
+    border: 3px solid #74b9ff;
+    box-shadow: 0 0 25px rgba(116,185,255,0.6);
+    background: linear-gradient(135deg, rgba(116,185,255,0.2) 0%, rgba(25,113,194,0.2) 100%);
+    opacity: 0.7;
+}
+
 .controls-section {
     display: flex;
     gap: 15px;

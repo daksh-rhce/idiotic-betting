@@ -17,7 +17,8 @@ let gameState = {
     playerId: 0,
     selectedTasks: [],
     chaosCardPlayedThisTurn: false,
-    gameMode: 'solo'
+    gameMode: 'solo',
+    wheelSpun: false
 };
 
 // Import card data (same as before)
@@ -260,6 +261,7 @@ function confirmTaskSelection() {
     // Start first auction
     gameState.round = 1;
     gameState.currentPlayerIndex = Math.floor(Math.random() * gameState.players.length);
+    gameState.wheelSpun = false; // Reset wheel for new game
     showScreen('game-screen');
     startAuction();
 }
@@ -273,15 +275,21 @@ function startAuction() {
     gameState.currentAuction = gameState.propertyDeck.pop();
     gameState.currentBid = 50;
     gameState.highestBidder = null;
-    gameState.biddingHistory = [];
+    gameState.biddingHistory = []; // Clear ALL bidding history for new auction
     gameState.chaosCardPlayedThisTurn = false;
     
-    // Set up bidding order (all players)
+    // Set up bidding order (all players - everyone can bid on new property)
     gameState.biddingOrder = [...gameState.players];
     shuffleDeck(gameState.biddingOrder); // Randomize order
     gameState.currentBidderIndex = 0;
     
     gameState.currentPhase = 'auction';
+    
+    // Make sure buttons are enabled for human player
+    const player = gameState.players[gameState.playerId];
+    if (player && player.money >= 50) {
+        // Buttons will be enabled when it's player's turn
+    }
     
     updateDisplay();
     addLog(`🏷️ New Property: ${gameState.currentAuction.name} (Value: ${gameState.currentAuction.value})`);
@@ -293,21 +301,50 @@ function startAuction() {
 }
 
 function processNextBidder() {
+    // First check: If highest bidder has bid so high no one else can afford, auto-win
+    if (gameState.highestBidder !== null) {
+        const highestBidder = gameState.players.find(p => p.id === gameState.highestBidder);
+        const canAnyoneElseBid = gameState.players.some(p => {
+            if (p.id === gameState.highestBidder) return false; // Skip the highest bidder
+            // Only check if they can afford - passing doesn't prevent bidding
+            return p.money >= gameState.currentBid + 50;
+        });
+        
+        if (!canAnyoneElseBid && highestBidder) {
+            addLog(`🎯 ${highestBidder.name} wins! No one else can afford to bid higher.`);
+            setTimeout(() => {
+                endAuction();
+                updateDisplay(); // Make sure property shows up immediately
+            }, 1000);
+            return;
+        }
+    }
+    
     if (gameState.currentBidderIndex >= gameState.biddingOrder.length) {
         // All players have had a chance, check if anyone wants to continue
+        // Only exclude players who can't afford, not those who passed (they can bid again next round)
         const activeBidders = gameState.biddingOrder.filter((p, idx) => {
             const player = gameState.players.find(pl => pl.id === p.id);
-            return player && player.money >= gameState.currentBid + 50 && 
-                   !gameState.biddingHistory.some(h => h.playerId === p.id && h.action === 'final-pass');
+            // Only exclude if they can't afford - passing doesn't exclude them
+            return player && player.money >= gameState.currentBid + 50;
         });
         
         if (activeBidders.length === 0) {
             // No one else can bid - highest bidder auto-buys
-            endAuction();
+            if (gameState.highestBidder !== null) {
+                const winner = gameState.players.find(p => p.id === gameState.highestBidder);
+                addLog(`🎯 ${winner.name} wins! No one else can bid.`);
+            }
+            setTimeout(() => {
+                endAuction();
+                updateDisplay(); // Make sure property shows up immediately
+            }, 1000);
             return;
         }
         
-        // Reset for another round
+        // Reset for another round - clear pass history for this round only
+        // Remove pass entries from this round so players can bid again
+        gameState.biddingHistory = gameState.biddingHistory.filter(h => h.action !== 'pass' || h.reason !== 'player-passed');
         gameState.biddingOrder = activeBidders;
         gameState.currentBidderIndex = 0;
     }
@@ -323,16 +360,24 @@ function processNextBidder() {
     
     if (player.money < gameState.currentBid + 50) {
         gameState.biddingHistory.push({ playerId: player.id, playerName: player.name, action: 'pass', reason: 'insufficient funds' });
+        addLog(`${player.name} can't afford to bid (needs ${gameState.currentBid + 50}, has ${player.money})`);
         gameState.currentBidderIndex++;
         setTimeout(() => processNextBidder(), 800);
         return;
     }
     
     if (player.id === gameState.playerId) {
-        // Human player's turn
-        document.getElementById('bid-btn').disabled = false;
-        document.getElementById('pass-btn').disabled = false;
-        addLog(`Your turn to bid! Current bid: ${gameState.currentBid}`);
+        // Human player's turn - always enable buttons if they can afford
+        const canBid = player.money >= gameState.currentBid + 50;
+        const bidBtn = document.getElementById('bid-btn');
+        const passBtn = document.getElementById('pass-btn');
+        if (bidBtn) bidBtn.disabled = !canBid;
+        if (passBtn) passBtn.disabled = false; // Can always pass
+        if (canBid) {
+            addLog(`Your turn to bid! Current bid: ${gameState.currentBid}`);
+        } else {
+            addLog(`Your turn, but you can't afford to bid (need ${gameState.currentBid + 50}, have ${player.money})`);
+        }
     } else {
         // NPC player's turn - always acts
         aiBid(player);
@@ -452,6 +497,23 @@ function placeBidForPlayer(playerId, bidAmount) {
     
     addLog(`💰 ${player.name} bids ${actualBid}!`);
     
+    // Check if anyone else can afford to bid higher
+    const canAnyoneElseBid = gameState.players.some(p => {
+        if (p.id === playerId) return false; // Skip the bidder
+        // Only check if they can afford - passing doesn't prevent bidding
+        return p.money >= actualBid + 50;
+    });
+    
+    // If no one else can bid, auto-win!
+    if (!canAnyoneElseBid) {
+        addLog(`🎯 ${player.name} bid so high that no one else can afford it!`);
+        setTimeout(() => {
+            endAuction();
+            updateDisplay(); // Make sure property shows up immediately
+        }, 1500);
+        return;
+    }
+    
     // If tie, first to bid that amount wins
     gameState.currentBidderIndex++;
     updateDisplay();
@@ -466,11 +528,15 @@ function passBid() {
 
 function passBidForPlayer(playerId) {
     const player = gameState.players.find(p => p.id === playerId);
-    gameState.biddingHistory.push({ playerId, playerName: player.name, action: 'final-pass' });
+    // Use 'pass' instead of 'final-pass' - allows player to bid again in next round of same auction
+    gameState.biddingHistory.push({ playerId, playerName: player.name, action: 'pass', reason: 'player-passed' });
     addLog(`${player.name} passes.`);
     
-    document.getElementById('bid-btn').disabled = true;
-    document.getElementById('pass-btn').disabled = true;
+    // Disable buttons temporarily
+    if (playerId === gameState.playerId) {
+        document.getElementById('bid-btn').disabled = true;
+        document.getElementById('pass-btn').disabled = true;
+    }
     
     gameState.currentBidderIndex++;
     updateDisplay();
@@ -484,14 +550,30 @@ function endAuction() {
         gameState.propertyDeck.unshift(gameState.currentAuction);
     } else {
         const winner = gameState.players.find(p => p.id === gameState.highestBidder);
+        const oldMoney = winner.money;
         winner.money -= gameState.currentBid;
         winner.properties.push(gameState.currentAuction);
         
         addLog(`🏆 ${winner.name} wins ${gameState.currentAuction.name} for ${gameState.currentBid}!`);
+        addLog(`💰 ${winner.name} money: ${oldMoney} → ${winner.money}`);
         
+        // Show money change animation
         if (winner.id === gameState.playerId) {
+            const moneyEl = document.getElementById('player-money');
+            const moneyHeaderEl = document.getElementById('player-money-header');
+            if (moneyEl && moneyHeaderEl) {
+                moneyEl.style.color = '#ff6b6b';
+                moneyHeaderEl.style.color = '#ff6b6b';
+                setTimeout(() => {
+                    moneyEl.style.color = '#FFD700';
+                    moneyHeaderEl.style.color = '#FFD700';
+                }, 1500);
+            }
             showEffectNotification(gameState.currentAuction.name, gameState.currentAuction.effect, "You now own this property!");
         }
+        
+        // Update display immediately so property shows in owned list
+        updateDisplay();
         
         checkTaskCompletion(gameState.highestBidder);
     }
@@ -506,6 +588,9 @@ function endAuction() {
     
     addLog("Action Phase: Players take turns playing Chaos cards.");
     
+    // Update display one more time to ensure property is visible
+    updateDisplay();
+    
     const firstPlayer = gameState.players[0];
     if (firstPlayer.id === gameState.playerId) {
         if (firstPlayer.chaosCards.length > 0) {
@@ -515,25 +600,28 @@ function endAuction() {
     } else {
         processAITurn(firstPlayer);
     }
-    
-    updateDisplay();
 }
 
 function playChaosCard() {
-    // Only allow on player's turn
+    // STRICT CHECK: Only allow on player's turn in action phase
     if (gameState.currentPlayerIndex !== gameState.playerId) {
-        addLog("Wait for your turn!");
+        addLog("⏸️ Wait for your turn!");
+        return;
+    }
+    
+    if (gameState.currentPhase !== 'action') {
+        addLog("⏸️ You can only play Chaos cards during the Action Phase!");
         return;
     }
     
     if (gameState.chaosCardPlayedThisTurn) {
-        addLog("You can only play one Chaos card per turn!");
+        addLog("⏸️ You can only play one Chaos card per turn!");
         return;
     }
     
     const player = gameState.players[gameState.playerId];
     if (player.chaosCards.length === 0) {
-        addLog("You have no Chaos cards!");
+        addLog("⏸️ You have no Chaos cards!");
         return;
     }
     
@@ -541,18 +629,35 @@ function playChaosCard() {
 }
 
 function showChaosCardSelection() {
+    // Check if it's player's turn
+    if (gameState.currentPlayerIndex !== gameState.playerId) {
+        addLog("⏸️ Wait for your turn!");
+        return;
+    }
+    
+    if (gameState.currentPhase !== 'action') {
+        addLog("⏸️ You can only play Chaos cards during the Action Phase!");
+        return;
+    }
+    
+    if (gameState.chaosCardPlayedThisTurn) {
+        addLog("⏸️ You can only play one Chaos card per turn!");
+        return;
+    }
+    
     const modal = document.getElementById('card-modal');
     const modalBody = document.getElementById('modal-body');
     const player = gameState.players[gameState.playerId];
     
-    modalBody.innerHTML = '<h3>Select a Chaos Card to Play:</h3><div class="cards-grid">';
+    modalBody.innerHTML = '<h3 style="color: #FFD700; margin-bottom: 20px; font-weight: bold;">Select a Chaos Card to Play (Click card to play):</h3><div class="cards-grid">';
     
     player.chaosCards.forEach((card, index) => {
         modalBody.innerHTML += `
-            <div class="card chaos-card" onclick="selectChaosCard(${index})">
-                <div class="card-title">${card.name}</div>
-                <div class="card-description">${card.description}</div>
-                <div class="card-type">Type: ${card.type}</div>
+            <div class="card chaos-card playable" onclick="selectChaosCard(${index})" style="cursor: pointer; border: 3px solid #FFD700;">
+                <div class="card-title" style="font-weight: bold; font-size: 1.1em;">${card.name}</div>
+                <div class="card-description" style="font-weight: bold;">${card.description}</div>
+                <div style="margin-top: 10px; font-size: 0.9em; color: #FFD700; font-weight: bold;">Type: ${card.type}</div>
+                <div style="margin-top: 10px; color: #51cf66; font-weight: bold;">Click to Play</div>
             </div>
         `;
     });
@@ -562,8 +667,35 @@ function showChaosCardSelection() {
 }
 
 function selectChaosCard(index) {
+    // STRICT CHECK: Only allow on player's turn
+    if (gameState.currentPlayerIndex !== gameState.playerId) {
+        addLog("⏸️ Wait for your turn!");
+        document.getElementById('card-modal').style.display = 'none';
+        return;
+    }
+    
+    if (gameState.currentPhase !== 'action') {
+        addLog("⏸️ You can only play Chaos cards during the Action Phase!");
+        document.getElementById('card-modal').style.display = 'none';
+        return;
+    }
+    
+    if (gameState.chaosCardPlayedThisTurn) {
+        addLog("⏸️ You can only play one Chaos card per turn!");
+        document.getElementById('card-modal').style.display = 'none';
+        return;
+    }
+    
     const player = gameState.players[gameState.playerId];
     const card = player.chaosCards[index];
+    
+    if (!card) {
+        addLog("Card not found!");
+        return;
+    }
+    
+    // Close modal first
+    document.getElementById('card-modal').style.display = 'none';
     
     if (card.needsTarget) {
         showPlayerSelection(card, index);
@@ -598,9 +730,21 @@ function showPlayerSelection(card, cardIndex) {
 function executeChaosCardForAI(aiPlayer, card, cardIndex, targetId) {
     const target = targetId ? gameState.players.find(p => p.id === targetId) : null;
     
+    // Check if card still exists (might have been removed)
+    if (cardIndex >= aiPlayer.chaosCards.length || aiPlayer.chaosCards[cardIndex] !== card) {
+        // Find card by name instead
+        const actualIndex = aiPlayer.chaosCards.findIndex(c => c.name === card.name);
+        if (actualIndex === -1) {
+            addLog(`${aiPlayer.name} tried to play ${card.name} but card not found!`);
+            return;
+        }
+        cardIndex = actualIndex;
+    }
+    
     // Remove card from AI's hand
     aiPlayer.chaosCards.splice(cardIndex, 1);
     aiPlayer.chaosCardPlayedThisTurn = true;
+    gameState.chaosCardPlayedThisTurn = true; // Also set global flag
     
     addLog(`${aiPlayer.name} played: ${card.name}${target ? ` on ${target.name}` : ''}`);
     
@@ -642,6 +786,9 @@ function executeChaosCard(card, cardIndex, targetId) {
 
 function executeChaosCardEffect(player, card, target) {
     // Execute effect - ALL CARDS IMPLEMENTED
+    const oldPlayerMoney = player.money;
+    const oldTargetMoney = target ? target.money : 0;
+    
     switch (card.name) {
         case "Petty Crime, Big Smile":
             if (target) {
@@ -649,6 +796,8 @@ function executeChaosCardEffect(player, card, target) {
                     target.money -= 100;
                     player.money += 100;
                     addLog(`💰 ${player.name} stole 100 from ${target.name}!`);
+                    addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
+                    addLog(`💰 ${target.name} money: ${oldTargetMoney} → ${target.money}`);
                 } else if (target.chaosCards.length > 0) {
                     const stolen = target.chaosCards.splice(Math.floor(Math.random() * target.chaosCards.length), 1)[0];
                     player.chaosCards.push(stolen);
@@ -666,6 +815,7 @@ function executeChaosCardEffect(player, card, target) {
         case "Accounting Error (In Your Favor)":
             player.money += 300;
             addLog(`💰 ${player.name} gained 300 money!`);
+            addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
             break;
         case "Unexpected Fine":
             if (target) {
@@ -673,11 +823,15 @@ function executeChaosCardEffect(player, card, target) {
                     target.money -= 200;
                     player.money += 200;
                     addLog(`💰 ${target.name} paid 200 to ${player.name}!`);
+                    addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
+                    addLog(`💰 ${target.name} money: ${oldTargetMoney} → ${target.money}`);
                 } else if (target.properties.length > 0) {
                     const sold = target.properties.pop();
+                    const oldTargetMoney2 = target.money;
                     target.money += Math.floor(sold.value / 2);
                     gameState.propertyDeck.unshift(sold);
                     addLog(`🏠 ${target.name} sold ${sold.name} to pay fine!`);
+                    addLog(`💰 ${target.name} money: ${oldTargetMoney2} → ${target.money}`);
                 }
             }
             break;
@@ -722,14 +876,17 @@ function executeChaosCardEffect(player, card, target) {
             if (Math.random() < 0.5) {
                 player.money *= 2;
                 addLog(`🎲 ${player.name} doubled their money!`);
+                addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
             } else {
                 player.money = Math.floor(player.money / 2);
                 addLog(`💸 ${player.name} lost half their money!`);
+                addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
             }
             break;
         case "We Found a Loophole":
             player.money += 500;
             addLog(`💰 ${player.name} found a loophole! +500 money!`);
+            addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
             break;
         case "Swap Lists!":
             if (target && target.tasks.length > 0 && player.tasks.length > 0) {
@@ -748,11 +905,13 @@ function executeChaosCardEffect(player, card, target) {
             }
             break;
         case "Asset Freeze":
-            if (target && target.properties.length > 0) {
-                const frozen = target.properties[Math.floor(Math.random() * target.properties.length)];
+            // Can target any player (including self) or random if no target
+            const freezeTarget = target || gameState.players[Math.floor(Math.random() * gameState.players.length)];
+            if (freezeTarget && freezeTarget.properties.length > 0) {
+                const frozen = freezeTarget.properties[Math.floor(Math.random() * freezeTarget.properties.length)];
                 frozen.frozen = true;
                 frozen.frozenUntil = gameState.round + 1;
-                addLog(`❄️ ${player.name} froze ${target.name}'s ${frozen.name}!`);
+                addLog(`❄️ ${player.name} froze ${freezeTarget.name}'s ${frozen.name}!`);
             }
             break;
         case "Wrong Pocket":
@@ -761,12 +920,23 @@ function executeChaosCardEffect(player, card, target) {
             addLog(`🛡️ ${player.name} is protected from steals!`);
             break;
         case "Bid Sniper":
-            if (gameState.currentAuction && gameState.highestBidder !== null) {
+            if (gameState.currentAuction && gameState.currentPhase === 'auction') {
                 const currentBid = gameState.currentBid;
                 if (player.money >= currentBid) {
+                    const oldBidder = gameState.highestBidder;
                     gameState.highestBidder = player.id;
                     addLog(`🎯 ${player.name} sniped the bid at ${currentBid}!`);
+                    if (oldBidder) {
+                        const oldBidderPlayer = gameState.players.find(p => p.id === oldBidder);
+                        if (oldBidderPlayer) {
+                            addLog(`💰 ${oldBidderPlayer.name} is no longer the highest bidder!`);
+                        }
+                    }
+                } else {
+                    addLog(`❌ ${player.name} can't afford to snipe (needs ${currentBid}, has ${player.money})`);
                 }
+            } else {
+                addLog(`❌ ${player.name} can only use Bid Sniper during an auction!`);
             }
             break;
         case "Security Upgrade":
@@ -774,16 +944,19 @@ function executeChaosCardEffect(player, card, target) {
             addLog(`🛡️ ${player.name} is protected from steals!`);
             break;
         case "Worthless Junk":
-            if (target && target.properties.length > 0) {
-                const property = target.properties[Math.floor(Math.random() * target.properties.length)];
+            // Can target any player (including self) or random if no target
+            const junkTarget = target || gameState.players[Math.floor(Math.random() * gameState.players.length)];
+            if (junkTarget && junkTarget.properties.length > 0) {
+                const property = junkTarget.properties[Math.floor(Math.random() * junkTarget.properties.length)];
                 property.worthless = true;
-                addLog(`🗑️ ${player.name} made ${target.name}'s ${property.name} worthless!`);
+                addLog(`🗑️ ${player.name} made ${junkTarget.name}'s ${property.name} worthless!`);
             }
             break;
         case "Idiotic Investment":
             player.money -= 200;
             player.pendingInvestment = { amount: 500, rounds: 2 };
             addLog(`💼 ${player.name} invested 200! Will gain 500 in 2 rounds.`);
+            addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
             break;
         case "Rules Are Suggestions":
             player.ignoreRule = true;
@@ -797,8 +970,26 @@ function executeChaosCardEffect(player, card, target) {
             addLog(`🎴 ${player.name} played: ${card.description}`);
     }
     
-    // Update money display immediately
+    // Update money display immediately with animations
     updateDisplay();
+    
+    // Trigger money animation for player if they're the one who played
+    if (player.id === gameState.playerId) {
+        const moneyEl = document.getElementById('player-money');
+        const moneyHeaderEl = document.getElementById('player-money-header');
+        if (moneyEl && moneyHeaderEl) {
+            const newMoney = player.money;
+            const oldMoney = parseInt(moneyEl.textContent) || newMoney;
+            if (newMoney !== oldMoney) {
+                moneyEl.style.color = newMoney > oldMoney ? '#51cf66' : '#ff6b6b';
+                moneyHeaderEl.style.color = newMoney > oldMoney ? '#51cf66' : '#ff6b6b';
+                setTimeout(() => {
+                    moneyEl.style.color = '#FFD700';
+                    moneyHeaderEl.style.color = '#FFD700';
+                }, 1500);
+            }
+        }
+    }
     
     document.getElementById('card-modal').style.display = 'none';
     document.getElementById('player-select-modal').style.display = 'none';
@@ -835,8 +1026,15 @@ function advanceTurn() {
 }
 
 function processAITurn(aiPlayer) {
-    // NPC: Always plays a chaos card if available to keep game moving
+    // Check if it's actually AI's turn
+    if (gameState.currentPlayerIndex !== gameState.players.indexOf(aiPlayer)) {
+        addLog(`⚠️ ${aiPlayer.name} turn mismatch, fixing...`);
+        gameState.currentPlayerIndex = gameState.players.indexOf(aiPlayer);
+    }
+    
+    // NPC: Check if already played or no cards
     if (aiPlayer.chaosCardPlayedThisTurn || aiPlayer.chaosCards.length === 0) {
+        addLog(`${aiPlayer.name} skips turn (${aiPlayer.chaosCardPlayedThisTurn ? 'already played' : 'no cards'})`);
         setTimeout(() => advanceTurn(), 800);
         return;
     }
@@ -877,14 +1075,15 @@ function processAITurn(aiPlayer) {
         const randomCard = aiPlayer.chaosCards[Math.floor(Math.random() * aiPlayer.chaosCards.length)];
         const index = aiPlayer.chaosCards.indexOf(randomCard);
         const target = randomCard.needsTarget ? 
-            gameState.players.find(p => p.id !== aiPlayer.id && p.id === gameState.playerId)?.id || 
-            gameState.players.find(p => p.id !== aiPlayer.id)?.id : null;
+            (gameState.players.find(p => p.id !== aiPlayer.id && p.id === gameState.playerId)?.id || 
+             gameState.players.find(p => p.id !== aiPlayer.id)?.id) : null;
         executeChaosCardForAI(aiPlayer, randomCard, index, target);
         setTimeout(() => advanceTurn(), 1200);
         return;
     }
     
     // Skip turn
+    addLog(`${aiPlayer.name} decides not to play a card.`);
     setTimeout(() => advanceTurn(), 800);
 }
 
@@ -942,7 +1141,7 @@ function checkTaskCompletion(playerId) {
     const completed = [];
     
     player.tasks.forEach((task, index) => {
-        const ownsProperty = player.properties.some(prop => prop.name === task.propertyName);
+        const ownsProperty = player.properties.some(prop => prop.name === task.propertyName && !prop.frozen);
         if (ownsProperty && !player.completedTasks.some(ct => ct.id === task.id)) {
             player.completedTasks.push(task);
             completed.push(task);
@@ -1075,15 +1274,18 @@ function updateCardsDisplay() {
     const player = gameState.players[gameState.playerId];
     if (!player) return;
     
-    // Task cards
+    // Task cards - with completion indicators
     const taskCardsDiv = document.getElementById('task-cards');
     taskCardsDiv.innerHTML = '';
     player.tasks.forEach(task => {
         const isCompleted = player.completedTasks.some(ct => ct.id === task.id);
+        const ownsProperty = player.properties.some(prop => prop.name === task.propertyName && !prop.frozen);
         taskCardsDiv.innerHTML += `
-            <div class="card task-card ${isCompleted ? 'completed-task' : ''}">
-                <div class="card-title">${task.description}</div>
-                <div class="card-description">Property: ${task.propertyName}</div>
+            <div class="card task-card ${isCompleted ? 'completed-task' : ''} ${ownsProperty && !isCompleted ? 'ready-to-complete' : ''}" style="font-weight: bold;">
+                <div class="card-title" style="font-weight: bold;">${task.description}</div>
+                <div class="card-description" style="font-weight: bold;">Property: ${task.propertyName}</div>
+                ${isCompleted ? '<div style="color: #51cf66; font-weight: bold; margin-top: 10px; font-size: 1.1em;">✅ COMPLETED!</div>' : ''}
+                ${ownsProperty && !isCompleted ? '<div style="color: #FFD700; font-weight: bold; margin-top: 10px; font-size: 1.1em;">⭐ Ready to Complete!</div>' : ''}
             </div>
         `;
     });
@@ -1096,10 +1298,10 @@ function updateCardsDisplay() {
                     !gameState.chaosCardPlayedThisTurn;
     player.chaosCards.forEach((card, index) => {
         chaosCardsDiv.innerHTML += `
-            <div class="card chaos-card ${canPlay ? 'playable' : ''}" onclick="selectChaosCard(${index})" style="cursor: ${canPlay ? 'pointer' : 'default'};">
-                <div class="card-title">${card.name}</div>
-                <div class="card-description">${card.description}</div>
-                ${canPlay ? '<div style="color: #51cf66; font-weight: bold; margin-top: 5px;">Click to Play</div>' : ''}
+            <div class="card chaos-card ${canPlay ? 'playable' : ''}" onclick="selectChaosCard(${index})" style="cursor: ${canPlay ? 'pointer' : 'default'}; font-weight: bold;">
+                <div class="card-title" style="font-weight: bold;">${card.name}</div>
+                <div class="card-description" style="font-weight: bold;">${card.description}</div>
+                ${canPlay ? '<div style="color: #51cf66; font-weight: bold; margin-top: 5px; font-size: 1.1em;">Click to Play</div>' : ''}
             </div>
         `;
     });
@@ -1108,11 +1310,13 @@ function updateCardsDisplay() {
     const propertyCardsDiv = document.getElementById('property-cards');
     propertyCardsDiv.innerHTML = '';
     player.properties.forEach(property => {
+        const isFrozen = property.frozen;
         propertyCardsDiv.innerHTML += `
-            <div class="card property-card-owned">
-                <div class="property-name">${property.name}</div>
-                <div class="property-value">Value: ${property.value}</div>
-                <div class="property-effect">${property.effect}</div>
+            <div class="card property-card-owned ${isFrozen ? 'frozen-property' : ''}" style="font-weight: bold;">
+                <div class="property-name" style="font-weight: bold;">${property.name}</div>
+                <div class="property-value" style="font-weight: bold;">Value: ${property.value}</div>
+                <div class="property-effect" style="font-weight: bold;">${property.effect}</div>
+                ${isFrozen ? '<div style="color: #74b9ff; font-weight: bold; margin-top: 10px; font-size: 1.1em;">❄️ FROZEN</div>' : ''}
             </div>
         `;
     });
