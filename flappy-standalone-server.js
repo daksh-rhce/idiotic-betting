@@ -67,7 +67,7 @@ app.get('/', (req, res) => {
         </div>
         <div id="flappy-container"></div>
         <div class="info">
-            <p>Click to play! Earn 1 flappy point per pipe! (Spacebar in fullscreen)</p>
+            <p>Click or press Spacebar to play! Earn 1 flappy point per pipe!</p>
         </div>
     </div>
     <script>
@@ -187,9 +187,9 @@ app.get('/', (req, res) => {
                 jumpMoneyBag();
             });
             
-            // Spacebar support for fullscreen
+            // Spacebar support (works always, especially useful in fullscreen)
             document.addEventListener('keydown', (e) => {
-                if (flappyGame.isFullscreen && (e.code === 'Space' || e.key === ' ')) {
+                if (e.code === 'Space' || e.key === ' ') {
                     e.preventDefault();
                     jumpMoneyBag();
                 }
@@ -552,6 +552,7 @@ app.get('/', (req, res) => {
 
         window.addEventListener('load', () => {
             initFlappyMoney();
+            updateFlappyPointsDisplay();
         });
 
         window.addEventListener('resize', () => {
