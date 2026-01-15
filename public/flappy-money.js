@@ -968,6 +968,8 @@ function toggleFlappyFullscreen() {
                 flappyGame.canvas.width = window.innerWidth;
                 flappyGame.canvas.height = window.innerHeight;
                 flappyGame.isFullscreen = true;
+                // Reset bird position when entering fullscreen
+                flappyGame.moneyBag.x = 100;
             }
         };
         
