@@ -1475,11 +1475,13 @@ function updateCardsDisplay() {
         const isCompleted = player.completedTasks.some(ct => ct.id === task.id);
         const ownsProperty = player.properties.some(prop => prop.name === task.propertyName && !prop.frozen);
         taskCardsDiv.innerHTML += `
-            <div class="card task-card ${isCompleted ? 'completed-task' : ''} ${ownsProperty && !isCompleted ? 'ready-to-complete' : ''}" style="font-weight: bold;">
+            <div class="card task-card ${isCompleted ? 'completed-task' : ''} ${ownsProperty && !isCompleted ? 'ready-to-complete' : ''}" style="font-weight: bold; position: relative;">
+                ${isCompleted ? '<div style="position: absolute; top: 5px; right: 5px; font-size: 2em; z-index: 10;">✅</div>' : ''}
+                ${ownsProperty && !isCompleted ? '<div style="position: absolute; top: 5px; right: 5px; font-size: 2em; z-index: 10; color: #FFD700;">✓</div>' : ''}
                 <div class="card-title" style="font-weight: bold;">${task.description}</div>
                 <div class="card-description" style="font-weight: bold;">Property: ${task.propertyName}</div>
                 ${isCompleted ? '<div style="color: #51cf66; font-weight: bold; margin-top: 10px; font-size: 1.1em;">✅ COMPLETED!</div>' : ''}
-                ${ownsProperty && !isCompleted ? '<div style="color: #FFD700; font-weight: bold; margin-top: 10px; font-size: 1.1em;">⭐ Ready to Complete!</div>' : ''}
+                ${ownsProperty && !isCompleted ? '<div style="color: #FFD700; font-weight: bold; margin-top: 10px; font-size: 1.1em;">✓ Ready to Complete!</div>' : ''}
             </div>
         `;
     });

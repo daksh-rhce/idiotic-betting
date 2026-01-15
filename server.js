@@ -77,6 +77,38 @@ app.post('/api/login', async (req, res) => {
     });
 });
 
+app.post('/api/change-password', async (req, res) => {
+    const { username, oldPassword, newPassword } = req.body;
+    
+    if (!username || !oldPassword || !newPassword) {
+        return res.status(400).json({ error: 'All fields required' });
+    }
+    
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+    
+    const user = users.get(username);
+    if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+    }
+    
+    const validPassword = await bcrypt.compare(oldPassword, user.password);
+    if (!validPassword) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+    
+    // Update password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    users.set(username, user);
+    
+    res.json({ 
+        success: true, 
+        message: 'Password changed successfully' 
+    });
+});
+
 // WebSocket for multiplayer
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);

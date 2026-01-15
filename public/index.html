@@ -34,6 +34,7 @@
             <div class="auth-tabs">
                 <button class="tab-btn active" onclick="showLogin()">Login</button>
                 <button class="tab-btn" onclick="showRegister()">Register</button>
+                <button class="tab-btn" onclick="showChangePassword()">Change Password</button>
             </div>
             
             <div id="login-form" class="auth-form">
@@ -41,6 +42,18 @@
                 <input type="password" id="login-password" placeholder="Password" required>
                 <button class="btn btn-large" onclick="handleLogin()">Login</button>
                 <div id="login-error" class="error-message"></div>
+                <button class="btn btn-secondary" onclick="showChangePassword()" style="margin-top: 10px; font-size: 0.9em;">Change Password</button>
+            </div>
+            
+            <div id="change-password-form" class="auth-form" style="display: none;">
+                <h3 style="color: #FFD700; margin-bottom: 15px;">Change Password</h3>
+                <input type="text" id="change-username" placeholder="Username" required>
+                <input type="password" id="change-old-password" placeholder="Current Password" required>
+                <input type="password" id="change-new-password" placeholder="New Password (min 6 characters)" required>
+                <button class="btn btn-large" onclick="handleChangePassword()">Change Password</button>
+                <button class="btn btn-secondary" onclick="showLogin()" style="margin-top: 10px;">Back to Login</button>
+                <div id="change-password-error" class="error-message"></div>
+                <div id="change-password-success" class="success-message"></div>
             </div>
             
             <div id="register-form" class="auth-form" style="display: none;">
@@ -224,10 +237,16 @@
                         </div>
                         <!-- Flappy Money Mini-Game -->
                         <div class="flappy-money-section">
-                            <h3>💰 Flappy Money (Free!)</h3>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h3>💰 Flappy Money (Free!)</h3>
+                                <button class="btn btn-small" onclick="showFlappyThemeShop()" style="font-size: 0.8em; padding: 5px 10px;">🎨 Themes</button>
+                            </div>
+                            <div id="flappy-points-display" style="color: #FFD700; font-weight: bold; margin-bottom: 10px; font-size: 1.1em;">
+                                🎮 Flappy Points: <span id="flappy-points-count">0</span>
+                            </div>
                             <div id="flappy-money-container"></div>
                             <p style="font-size: 0.9em; color: #FFD700; margin-top: 5px; font-weight: bold;">
-                                Click to play! Earn money based on score!
+                                Click to play! Earn 10 flappy points per game!
                             </p>
                         </div>
                     </div>

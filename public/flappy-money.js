@@ -2,15 +2,142 @@
 let flappyGame = {
     canvas: null,
     ctx: null,
-    moneyBag: { x: 100, y: 300, width: 50, height: 50, velocity: 0, gravity: 0.4, horizontalSpeed: 0 },
+    moneyBag: { x: 100, y: 300, width: 40, height: 30, velocity: 0, gravity: 0.3, horizontalSpeed: 0 },
     pipes: [],
     score: 0,
     gameOver: false,
     gameStarted: false,
-    pipeGap: 250,
+    pipeGap: 375, // 1.5x larger (250 * 1.5)
     pipeSpeed: 3,
     lastPipeTime: 0,
-    moneyParticles: []
+    moneyParticles: [],
+    theme: 'og',
+    flappyPoints: 0 // New currency system
+};
+
+// Theme definitions
+const FLAPPY_THEMES = {
+    og: {
+        name: 'Original',
+        cost: 0,
+        owned: true,
+        birdColor: '#8B4513',
+        birdSymbol: '💰',
+        pipeColor: '#FFD700',
+        pipePattern: '💰',
+        bgGradient: ['#1a5a1a', '#0d4d0d', '#052505'],
+        floorColor: '#FFD700'
+    },
+    scifi: {
+        name: 'Sci-Fi',
+        cost: 100,
+        owned: false,
+        birdColor: '#00FFFF',
+        birdSymbol: '🤖',
+        pipeColor: '#C0C0C0',
+        pipePattern: '⚙️',
+        bgGradient: ['#0a0a2e', '#16213e', '#1a1a2e'],
+        floorColor: '#4a90e2'
+    },
+    neon: {
+        name: 'Neon',
+        cost: 150,
+        owned: false,
+        birdColor: '#FF00FF',
+        birdSymbol: '💜',
+        pipeColor: '#00FFFF',
+        pipePattern: '✨',
+        bgGradient: ['#1a0033', '#330066', '#4d0099'],
+        floorColor: '#FF00FF'
+    },
+    cyberpunk: {
+        name: 'Cyberpunk',
+        cost: 200,
+        owned: false,
+        birdColor: '#00FF00',
+        birdSymbol: '⚡',
+        pipeColor: '#FF0080',
+        pipePattern: '🔷',
+        bgGradient: ['#000000', '#1a0033', '#330033'],
+        floorColor: '#00FF00'
+    },
+    space: {
+        name: 'Space',
+        cost: 250,
+        owned: false,
+        birdColor: '#FFD700',
+        birdSymbol: '🚀',
+        pipeColor: '#FFFFFF',
+        pipePattern: '⭐',
+        bgGradient: ['#000428', '#004e92', '#009ffd'],
+        floorColor: '#FFD700'
+    },
+    classic: {
+        name: 'Classic',
+        cost: 10, // 10 flappy points
+        owned: false,
+        birdColor: '#FFA500',
+        birdSymbol: '🐦',
+        pipeColor: '#228B22',
+        pipePattern: '🌿',
+        bgGradient: ['#87CEEB', '#98D8C8', '#F7DC6F'],
+        floorColor: '#228B22'
+    },
+    retro: {
+        name: 'Retro',
+        cost: 10,
+        owned: false,
+        birdColor: '#FF1493',
+        birdSymbol: '🦩',
+        pipeColor: '#00CED1',
+        pipePattern: '💎',
+        bgGradient: ['#FF69B4', '#FF1493', '#8B008B'],
+        floorColor: '#00CED1'
+    },
+    scary: {
+        name: 'Scary',
+        cost: 10,
+        owned: false,
+        birdColor: '#8B0000',
+        birdSymbol: '🦇',
+        pipeColor: '#2F2F2F',
+        pipePattern: '💀',
+        bgGradient: ['#1a1a1a', '#000000', '#2d0000'],
+        floorColor: '#8B0000'
+    },
+    dodgy: {
+        name: 'Dodgy',
+        cost: 10,
+        owned: false,
+        birdColor: '#FFD700',
+        birdSymbol: '🦜',
+        pipeColor: '#8B4513',
+        pipePattern: '💸',
+        bgGradient: ['#654321', '#8B4513', '#A0522D'],
+        floorColor: '#FFD700'
+    },
+    cat: {
+        name: 'Cat',
+        cost: 10,
+        owned: false,
+        birdColor: '#FFA500',
+        birdSymbol: '🐱',
+        pipeColor: '#FF69B4',
+        pipePattern: '🐾',
+        bgGradient: ['#FFB6C1', '#FFC0CB', '#FFE4E1'],
+        floorColor: '#FF69B4'
+    },
+    meme: {
+        name: 'Meme',
+        cost: 10,
+        owned: false,
+        birdColor: '#00FF00',
+        birdSymbol: '🦆',
+        pipeColor: '#FFFF00',
+        pipePattern: '😂',
+        bgGradient: ['#FF00FF', '#00FFFF', '#FFFF00'],
+        floorColor: '#FF00FF'
+    }
 };
 
 function initFlappyMoney() {
@@ -21,23 +148,51 @@ function initFlappyMoney() {
         return;
     }
     
+    // Load themes and points
+    loadOwnedThemes();
+    updateFlappyPointsDisplay();
+    
     // Clear container first
     container.innerHTML = '';
     
-    // Create canvas - same size as standalone version
+    // Create canvas - full width responsive
     flappyGame.canvas = document.createElement('canvas');
     flappyGame.canvas.id = 'flappy-money-canvas';
-    flappyGame.canvas.width = 400;
-    flappyGame.canvas.height = 600;
+    
+    // Calculate responsive size
+    const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
+    const aspectRatio = 600 / 400; // height/width
+    flappyGame.canvas.width = Math.min(containerWidth - 40, 1200);
+    flappyGame.canvas.height = flappyGame.canvas.width * aspectRatio;
+    
+    const theme = FLAPPY_THEMES[flappyGame.theme] || FLAPPY_THEMES.og;
     flappyGame.canvas.style.cssText = `
-        border: 3px solid #FFD700;
+        border: 3px solid ${theme.floorColor};
         border-radius: 10px;
-        background: linear-gradient(180deg, #1a5a1a 0%, #0d4d0d 50%, #052505 100%);
+        background: linear-gradient(180deg, ${theme.bgGradient[0]} 0%, ${theme.bgGradient[1]} 50%, ${theme.bgGradient[2]} 100%);
         cursor: pointer;
-        box-shadow: 0 0 20px rgba(255,215,0,0.5);
+        box-shadow: 0 0 20px ${theme.floorColor}80;
         display: block;
         margin: 0 auto;
+        width: 100%;
+        max-width: 100%;
+        height: auto;
     `;
+    
+    // Handle window resize
+    const resizeCanvas = () => {
+        const containerWidth = container.offsetWidth || window.innerWidth * 0.9;
+        const aspectRatio = 600 / 400;
+        const newWidth = Math.min(containerWidth - 40, 1200);
+        const newHeight = newWidth * aspectRatio;
+        
+        if (flappyGame.canvas.width !== newWidth || flappyGame.canvas.height !== newHeight) {
+            flappyGame.canvas.width = newWidth;
+            flappyGame.canvas.height = newHeight;
+        }
+    };
+    
+    window.addEventListener('resize', resizeCanvas);
     
     flappyGame.ctx = flappyGame.canvas.getContext('2d');
     container.appendChild(flappyGame.canvas);
@@ -57,7 +212,7 @@ function initFlappyMoney() {
 }
 
 function resetFlappyGame() {
-    flappyGame.moneyBag = { x: 100, y: 300, width: 50, height: 50, velocity: 0, gravity: 0.3, horizontalSpeed: 0 };
+    flappyGame.moneyBag = { x: 100, y: 300, width: 40, height: 30, velocity: 0, gravity: 0.3, horizontalSpeed: 0 };
     flappyGame.pipes = [];
     flappyGame.score = 0;
     flappyGame.gameOver = false;
@@ -131,16 +286,7 @@ function updateFlappyGame() {
         if (pipe.x + pipe.width < flappyGame.moneyBag.x && !pipe.passed) {
             pipe.passed = true;
             flappyGame.score++;
-            // Give 10 money for each pipe passed
-            if (gameState && gameState.players && gameState.players[gameState.playerId]) {
-                gameState.players[gameState.playerId].money += 10;
-                if (typeof addLog === 'function') {
-                    addLog(`💰 Flappy Money: +10 money! (Pipe ${flappyGame.score})`);
-                }
-                if (typeof updateDisplay === 'function') {
-                    updateDisplay();
-                }
-            }
+            // No money per pipe - only points at game end
             createMoneyParticle(pipe.x + pipe.width / 2, pipe.topHeight + flappyGame.pipeGap / 2);
         }
         
@@ -162,7 +308,7 @@ function createPipe() {
     const topHeight = Math.random() * (flappyGame.canvas.height - flappyGame.pipeGap - 120) + 60;
     flappyGame.pipes.push({
         x: flappyGame.canvas.width,
-        width: 60,
+        width: 90, // Wider pipes (was 60)
         topHeight: topHeight,
         passed: false
     });
@@ -183,18 +329,16 @@ function gameOverFlappy() {
     if (flappyGame.gameOver) return; // Prevent multiple calls
     flappyGame.gameOver = true;
     
-    // Give player money bonus based on score (FREE - no cost to play!)
-    const bonus = flappyGame.score * 10;
-    if (typeof gameState !== 'undefined' && gameState && gameState.players && gameState.players[gameState.playerId]) {
-        const player = gameState.players[gameState.playerId];
-        const oldMoney = player.money;
-        player.money += bonus;
-        if (typeof addLog === 'function') {
-            addLog(`💰 Flappy Money Bonus: +${bonus} money! (Score: ${flappyGame.score})`);
-        }
-        if (typeof updateDisplay === 'function') {
-            updateDisplay();
-        }
+    // Give 10 flappy points per game
+    const pointsEarned = 10;
+    flappyGame.flappyPoints += pointsEarned;
+    saveFlappyPoints();
+    
+    if (typeof addLog === 'function') {
+        addLog(`🎮 Flappy Points: +${pointsEarned} (Total: ${flappyGame.flappyPoints})`);
+    }
+    if (typeof updateDisplay === 'function') {
+        updateDisplay();
     }
 }
 
@@ -203,42 +347,38 @@ function drawFlappyGame() {
     
     const ctx = flappyGame.ctx;
     const canvas = flappyGame.canvas;
+    const theme = FLAPPY_THEMES[flappyGame.theme] || FLAPPY_THEMES.og;
     
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Draw money background pattern
-    ctx.fillStyle = '#0d4d0d';
+    // Draw background with theme gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, theme.bgGradient[0]);
+    gradient.addColorStop(0.5, theme.bgGradient[1]);
+    gradient.addColorStop(1, theme.bgGradient[2]);
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw money symbols in background (floating)
-    ctx.fillStyle = 'rgba(255,215,0,0.15)';
+    // Draw background symbols (theme-specific)
+    ctx.fillStyle = theme.pipeColor + '33'; // 33 = 20% opacity
     ctx.font = 'bold 18px Arial';
     for (let i = 0; i < 8; i++) {
         const x = (i * 40) % canvas.width;
         const y = (i * 50 + Date.now() / 50) % (canvas.height - 50);
-        ctx.fillText('💰', x, y);
+        ctx.fillText(theme.pipePattern, x, y);
     }
     
-    // Draw dollar signs
-    ctx.fillStyle = 'rgba(255,215,0,0.1)';
-    ctx.font = 'bold 16px Arial';
-    for (let i = 0; i < 5; i++) {
-        const x = (i * 60 + 20) % canvas.width;
-        const y = (i * 70 + Date.now() / 40) % (canvas.height - 50);
-        ctx.fillText('$', x, y);
-    }
-    
-    // Draw floor (money pattern)
-    ctx.fillStyle = '#FFD700';
+    // Draw floor (theme color)
+    ctx.fillStyle = theme.floorColor;
     ctx.fillRect(0, canvas.height - 60, canvas.width, 60);
     
-    // Draw money symbols on floor
-    ctx.fillStyle = '#f59f00';
+    // Draw floor pattern
+    ctx.fillStyle = theme.pipeColor;
     ctx.font = 'bold 20px Arial';
     ctx.textAlign = 'center';
     for (let i = 20; i < canvas.width; i += 40) {
-        ctx.fillText('💰', i, canvas.height - 30);
+        ctx.fillText(theme.pipePattern, i, canvas.height - 30);
     }
     ctx.textAlign = 'left';
     
@@ -250,26 +390,26 @@ function drawFlappyGame() {
     ctx.lineTo(canvas.width, canvas.height - 60);
     ctx.stroke();
     
-    // Draw pipes (money stacks)
+    // Draw pipes (theme-specific)
     flappyGame.pipes.forEach(pipe => {
         // Top pipe
-        drawMoneyPipe(pipe.x, 0, pipe.width, pipe.topHeight, ctx);
+        drawMoneyPipe(pipe.x, 0, pipe.width, pipe.topHeight, ctx, theme);
         // Bottom pipe
-        drawMoneyPipe(pipe.x, pipe.topHeight + flappyGame.pipeGap, pipe.width, canvas.height - (pipe.topHeight + flappyGame.pipeGap) - 60, ctx);
+        drawMoneyPipe(pipe.x, pipe.topHeight + flappyGame.pipeGap, pipe.width, canvas.height - (pipe.topHeight + flappyGame.pipeGap) - 60, ctx, theme);
     });
     
-    // Draw money bag (player)
-    drawMoneyBag(flappyGame.moneyBag.x, flappyGame.moneyBag.y, flappyGame.moneyBag.width, flappyGame.moneyBag.height, ctx);
+    // Draw bird (theme-specific)
+    drawMoneyBag(flappyGame.moneyBag.x, flappyGame.moneyBag.y, flappyGame.moneyBag.width, flappyGame.moneyBag.height, ctx, theme);
     
     // Draw particles
     flappyGame.moneyParticles.forEach(particle => {
-        ctx.fillStyle = '#FFD700';
+        ctx.fillStyle = theme.pipeColor;
         ctx.font = 'bold 16px Arial';
-        ctx.fillText('💰', particle.x, particle.y);
+        ctx.fillText(theme.pipePattern, particle.x, particle.y);
     });
     
     // Draw score
-    ctx.fillStyle = '#FFD700';
+    ctx.fillStyle = theme.floorColor;
     ctx.font = 'bold 24px Arial';
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 3;
@@ -300,64 +440,88 @@ function drawFlappyGame() {
     }
 }
 
-function drawMoneyBag(x, y, width, height, ctx) {
-    // Draw money bag (brown bag shape)
-    ctx.fillStyle = '#8B4513';
-    ctx.beginPath();
-    ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, 2 * Math.PI);
-    ctx.fill();
+function drawMoneyBag(x, y, width, height, ctx, theme) {
+    theme = theme || FLAPPY_THEMES[flappyGame.theme] || FLAPPY_THEMES.og;
     
-    // Draw bag shadow
-    ctx.fillStyle = '#654321';
-    ctx.beginPath();
-    ctx.ellipse(x + width / 2, y + height * 0.8, width * 0.4, height * 0.2, 0, 0, 2 * Math.PI);
-    ctx.fill();
+    // Use same proportions as mini version (40x30)
+    const birdWidth = 40;
+    const birdHeight = 30;
+    const scaleX = width / birdWidth;
+    const scaleY = height / birdHeight;
     
-    // Draw money symbol on bag (larger)
-    ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 28px Arial';
+    if (flappyGame.theme === 'og') {
+        // Original money bag
+        ctx.fillStyle = '#8B4513';
+        ctx.beginPath();
+        ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        ctx.fillStyle = '#654321';
+        ctx.beginPath();
+        ctx.ellipse(x + width / 2, y + height * 0.8, width * 0.4, height * 0.2, 0, 0, 2 * Math.PI);
+        ctx.fill();
+    } else {
+        // Theme-specific bird shape
+        ctx.fillStyle = theme.birdColor;
+        ctx.beginPath();
+        ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        // Add glow effect for non-OG themes
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = theme.birdColor;
+    }
+    
+    // Draw bird symbol (proportional to size)
+    ctx.fillStyle = theme.birdColor;
+    const fontSize = Math.min(width, height) * 0.7;
+    ctx.font = 'bold ' + fontSize + 'px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('💰', x + width / 2, y + height / 2);
+    ctx.fillText(theme.birdSymbol, x + width / 2, y + height / 2);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+    ctx.shadowBlur = 0;
     
-    // Draw bag opening (top)
-    ctx.strokeStyle = '#654321';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x + width / 2, y + height * 0.25, width * 0.35, 0, Math.PI);
-    ctx.stroke();
-    
-    // Draw bag tie/string
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(x + width * 0.3, y + height * 0.25);
-    ctx.lineTo(x + width * 0.3, y + height * 0.15);
-    ctx.moveTo(x + width * 0.7, y + height * 0.25);
-    ctx.lineTo(x + width * 0.7, y + height * 0.15);
-    ctx.stroke();
+    if (flappyGame.theme === 'og') {
+        // Draw bag opening and tie
+        ctx.strokeStyle = '#654321';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x + width / 2, y + height * 0.25, width * 0.35, 0, Math.PI);
+        ctx.stroke();
+        
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + width * 0.3, y + height * 0.25);
+        ctx.lineTo(x + width * 0.3, y + height * 0.15);
+        ctx.moveTo(x + width * 0.7, y + height * 0.25);
+        ctx.lineTo(x + width * 0.7, y + height * 0.15);
+        ctx.stroke();
+    }
 }
 
-function drawMoneyPipe(x, y, width, height, ctx) {
-    // Draw pipe as stack of money (golden)
-    ctx.fillStyle = '#FFD700';
+function drawMoneyPipe(x, y, width, height, ctx, theme) {
+    theme = theme || FLAPPY_THEMES[flappyGame.theme] || FLAPPY_THEMES.og;
+    
+    // Draw pipe with theme color
+    ctx.fillStyle = theme.pipeColor;
     ctx.fillRect(x, y, width, height);
     
-    // Draw money pattern (dollar signs and money emojis)
-    ctx.fillStyle = '#f59f00';
+    // Draw theme pattern
+    ctx.fillStyle = theme.bgGradient[1]; // Use darker gradient color for pattern
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center';
     for (let i = 15; i < height; i += 20) {
         for (let j = width / 2; j < width; j += width / 2) {
-            ctx.fillText('💰', x + j, y + i);
+            ctx.fillText(theme.pipePattern, x + j, y + i);
         }
     }
     ctx.textAlign = 'left';
     
-    // Draw vertical lines (money stack effect)
-    ctx.strokeStyle = '#f59f00';
+    // Draw vertical lines (pipe effect)
+    ctx.strokeStyle = theme.bgGradient[1];
     ctx.lineWidth = 1;
     for (let i = 0; i < width; i += 10) {
         ctx.beginPath();
@@ -372,7 +536,11 @@ function drawMoneyPipe(x, y, width, height, ctx) {
     ctx.strokeRect(x, y, width, height);
     
     // Draw highlight
-    ctx.strokeStyle = '#ffed4e';
+    const highlightColor = flappyGame.theme === 'scifi' ? '#FFFFFF' : 
+                          flappyGame.theme === 'neon' ? '#FF00FF' :
+                          flappyGame.theme === 'cyberpunk' ? '#00FF00' :
+                          flappyGame.theme === 'space' ? '#FFD700' : '#ffed4e';
+    ctx.strokeStyle = highlightColor;
     ctx.lineWidth = 1;
     ctx.strokeRect(x + 2, y + 2, width - 4, 10);
 }
@@ -426,7 +594,368 @@ if (gameScreen) {
     observer.observe(gameScreen, { attributes: true });
 }
 
+// Flappy Points Management
+function loadFlappyPoints() {
+    const saved = localStorage.getItem('flappyPoints');
+    if (saved) {
+        flappyGame.flappyPoints = parseInt(saved) || 0;
+    }
+}
+
+function saveFlappyPoints() {
+    localStorage.setItem('flappyPoints', flappyGame.flappyPoints.toString());
+}
+
+// Theme management
+function loadOwnedThemes() {
+    const saved = localStorage.getItem('flappyThemes');
+    if (saved) {
+        const owned = JSON.parse(saved);
+        Object.keys(FLAPPY_THEMES).forEach(key => {
+            if (owned[key]) {
+                FLAPPY_THEMES[key].owned = true;
+            }
+        });
+    }
+    // Load current theme
+    const currentTheme = localStorage.getItem('flappyCurrentTheme');
+    if (currentTheme && FLAPPY_THEMES[currentTheme]) {
+        flappyGame.theme = currentTheme;
+    }
+    // Load flappy points
+    loadFlappyPoints();
+}
+
+function saveOwnedThemes() {
+    const owned = {};
+    Object.keys(FLAPPY_THEMES).forEach(key => {
+        if (FLAPPY_THEMES[key].owned) {
+            owned[key] = true;
+        }
+    });
+    localStorage.setItem('flappyThemes', JSON.stringify(owned));
+    localStorage.setItem('flappyCurrentTheme', flappyGame.theme);
+    saveFlappyPoints();
+}
+
+function showFlappyThemeShop() {
+    loadFlappyPoints();
+    const player = gameState && gameState.players && gameState.players[gameState.playerId] ? 
+                   gameState.players[gameState.playerId] : null;
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'flappy-theme-shop';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 20000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow-y: auto;
+    `;
+    
+    const shopContent = document.createElement('div');
+    shopContent.style.cssText = `
+        background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+        border: 5px solid #FFD700;
+        border-radius: 20px;
+        padding: 30px;
+        max-width: 800px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+    `;
+    
+    const playerMoney = player ? player.money : 0;
+    shopContent.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color: #FFD700; font-size: 2em; font-weight: bold;">🎨 Flappy Bird Theme Shop</h2>
+            <button onclick="this.closest('#flappy-theme-shop').remove()" style="
+                background: #ff0000;
+                color: #fff;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                font-size: 1.5em;
+                cursor: pointer;
+                font-weight: bold;
+            ">✕</button>
+        </div>
+        <div style="color: #FFD700; font-size: 1.2em; margin-bottom: 10px; font-weight: bold;">
+            🎮 Flappy Points: ${flappyGame.flappyPoints}
+        </div>
+        ${player ? `<div style="color: #FFD700; font-size: 1.2em; margin-bottom: 20px; font-weight: bold;">
+            💰 Game Money: ${playerMoney}
+        </div>` : ''}
+        <div style="background: rgba(255,215,0,0.1); border: 2px solid #FFD700; border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+            <h3 style="color: #FFD700; margin-bottom: 10px; font-weight: bold;">Trade Options:</h3>
+            <button onclick="tradeFlappyPointsForCash()" style="
+                background: ${flappyGame.flappyPoints >= 10 ? '#00FF00' : '#666'};
+                color: #000;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 10px;
+                font-weight: bold;
+                cursor: ${flappyGame.flappyPoints >= 10 ? 'pointer' : 'not-allowed'};
+                margin-right: 10px;
+                opacity: ${flappyGame.flappyPoints >= 10 ? '1' : '0.5'};
+            ">10 Points → 5 Cash</button>
+            <span style="color: #FFD700; font-weight: bold;">OR</span>
+            <button onclick="tradeFlappyPointsForTheme()" style="
+                background: ${flappyGame.flappyPoints >= 10 ? '#FFD700' : '#666'};
+                color: #000;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 10px;
+                font-weight: bold;
+                cursor: ${flappyGame.flappyPoints >= 10 ? 'pointer' : 'not-allowed'};
+                margin-left: 10px;
+                opacity: ${flappyGame.flappyPoints >= 10 ? '1' : '0.5'};
+            ">10 Points → Unlock Theme</button>
+        </div>
+        <div id="theme-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        </div>
+    `;
+    
+    const themeList = shopContent.querySelector('#theme-list');
+    
+    Object.keys(FLAPPY_THEMES).forEach(themeKey => {
+        const theme = FLAPPY_THEMES[themeKey];
+        const themeCard = document.createElement('div');
+        themeCard.style.cssText = `
+            background: linear-gradient(135deg, ${theme.bgGradient[0]} 0%, ${theme.bgGradient[2]} 100%);
+            border: 3px solid ${theme.owned ? '#00FF00' : '#FFD700'};
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: ${theme.owned ? 'pointer' : 'default'};
+            opacity: ${theme.owned ? '1' : '0.7'};
+        `;
+        
+        const canBuyWithPoints = flappyGame.flappyPoints >= theme.cost;
+        const canBuyWithMoney = player && player.money >= theme.cost;
+        
+        themeCard.innerHTML = `
+            <div style="font-size: 3em; margin-bottom: 10px;">${theme.birdSymbol}</div>
+            <h3 style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">${theme.name}</h3>
+            ${theme.owned ? 
+                `<div style="color: #00FF00; font-weight: bold; margin-bottom: 10px;">✓ OWNED</div>
+                 <button onclick="selectFlappyTheme('${themeKey}')" style="
+                     background: #00FF00;
+                     color: #000;
+                     border: none;
+                     padding: 10px 20px;
+                     border-radius: 10px;
+                     font-weight: bold;
+                     cursor: pointer;
+                     ${flappyGame.theme === themeKey ? 'opacity: 0.5; cursor: not-allowed;' : ''}
+                 ">${flappyGame.theme === themeKey ? 'CURRENT' : 'SELECT'}</button>` :
+                `<div style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">
+                    Cost: ${theme.cost === 0 ? 'FREE' : theme.cost <= 10 ? '🎮 ' + theme.cost + ' Points' : '💰 ' + theme.cost + ' Money'}
+                </div>
+                 ${theme.cost <= 10 ? 
+                    `<button onclick="buyFlappyThemeWithPoints('${themeKey}')" style="
+                         background: ${canBuyWithPoints ? '#FFD700' : '#666'};
+                         color: #000;
+                         border: none;
+                         padding: 10px 20px;
+                         border-radius: 10px;
+                         font-weight: bold;
+                         cursor: ${canBuyWithPoints ? 'pointer' : 'not-allowed'};
+                         opacity: ${canBuyWithPoints ? '1' : '0.5'};
+                     ">${canBuyWithPoints ? 'BUY (Points)' : 'NEED ' + theme.cost + ' POINTS'}</button>` :
+                    `<button onclick="buyFlappyTheme('${themeKey}')" style="
+                         background: ${canBuyWithMoney ? '#FFD700' : '#666'};
+                         color: #000;
+                         border: none;
+                         padding: 10px 20px;
+                         border-radius: 10px;
+                         font-weight: bold;
+                         cursor: ${canBuyWithMoney ? 'pointer' : 'not-allowed'};
+                         opacity: ${canBuyWithMoney ? '1' : '0.5'};
+                     ">${canBuyWithMoney ? 'BUY (Money)' : 'CAN\'T AFFORD'}</button>`
+                 }
+                `
+            }
+        `;
+        
+        themeList.appendChild(themeCard);
+    });
+    
+    overlay.appendChild(shopContent);
+    document.body.appendChild(overlay);
+}
+
+function buyFlappyTheme(themeKey) {
+    const theme = FLAPPY_THEMES[themeKey];
+    if (!theme || theme.owned) return;
+    
+    const player = gameState && gameState.players && gameState.players[gameState.playerId] ? 
+                   gameState.players[gameState.playerId] : null;
+    if (!player) {
+        alert('You need to be in a game to buy themes with money!');
+        return;
+    }
+    
+    if (player.money < theme.cost) {
+        alert(`You need ${theme.cost} money to buy this theme!`);
+        return;
+    }
+    
+    player.money -= theme.cost;
+    theme.owned = true;
+    saveOwnedThemes();
+    
+    if (typeof addLog === 'function') {
+        addLog(`🎨 Purchased ${theme.name} theme for ${theme.cost} money!`);
+    }
+    if (typeof updateDisplay === 'function') {
+        updateDisplay();
+    }
+    
+    // Refresh shop
+    document.getElementById('flappy-theme-shop').remove();
+    showFlappyThemeShop();
+}
+
+function buyFlappyThemeWithPoints(themeKey) {
+    const theme = FLAPPY_THEMES[themeKey];
+    if (!theme || theme.owned) return;
+    
+    if (flappyGame.flappyPoints < theme.cost) {
+        alert(`You need ${theme.cost} flappy points to buy this theme!`);
+        return;
+    }
+    
+    flappyGame.flappyPoints -= theme.cost;
+    theme.owned = true;
+    saveOwnedThemes();
+    
+    if (typeof addLog === 'function') {
+        addLog(`🎨 Purchased ${theme.name} theme for ${theme.cost} flappy points!`);
+    }
+    if (typeof updateDisplay === 'function') {
+        updateDisplay();
+    }
+    
+    // Refresh shop
+    document.getElementById('flappy-theme-shop').remove();
+    showFlappyThemeShop();
+}
+
+function tradeFlappyPointsForCash() {
+    if (flappyGame.flappyPoints < 10) {
+        alert('You need at least 10 flappy points to trade!');
+        return;
+    }
+    
+    const player = gameState && gameState.players && gameState.players[gameState.playerId] ? 
+                   gameState.players[gameState.playerId] : null;
+    if (!player) {
+        alert('You need to be in a game to trade points for cash!');
+        return;
+    }
+    
+    flappyGame.flappyPoints -= 10;
+    player.money += 5;
+    saveFlappyPoints();
+    
+    if (typeof addLog === 'function') {
+        addLog(`💰 Traded 10 flappy points for 5 cash! (Points: ${flappyGame.flappyPoints})`);
+    }
+    if (typeof updateDisplay === 'function') {
+        updateDisplay();
+    }
+    
+    // Refresh shop
+    document.getElementById('flappy-theme-shop').remove();
+    showFlappyThemeShop();
+}
+
+function tradeFlappyPointsForTheme() {
+    if (flappyGame.flappyPoints < 10) {
+        alert('You need at least 10 flappy points to unlock a theme!');
+        return;
+    }
+    
+    // Find first unowned theme that costs 10 points
+    const availableThemes = Object.keys(FLAPPY_THEMES).filter(key => 
+        !FLAPPY_THEMES[key].owned && FLAPPY_THEMES[key].cost === 10
+    );
+    
+    if (availableThemes.length === 0) {
+        alert('All 10-point themes are already unlocked!');
+        return;
+    }
+    
+    // Unlock random theme
+    const randomTheme = availableThemes[Math.floor(Math.random() * availableThemes.length)];
+    flappyGame.flappyPoints -= 10;
+    FLAPPY_THEMES[randomTheme].owned = true;
+    saveOwnedThemes();
+    
+    if (typeof addLog === 'function') {
+        addLog(`🎨 Unlocked ${FLAPPY_THEMES[randomTheme].name} theme for 10 flappy points!`);
+    }
+    if (typeof updateDisplay === 'function') {
+        updateDisplay();
+    }
+    
+    // Refresh shop
+    document.getElementById('flappy-theme-shop').remove();
+    showFlappyThemeShop();
+}
+
+function selectFlappyTheme(themeKey) {
+    if (!FLAPPY_THEMES[themeKey] || !FLAPPY_THEMES[themeKey].owned) return;
+    if (flappyGame.theme === themeKey) return;
+    
+    flappyGame.theme = themeKey;
+    saveOwnedThemes();
+    
+    if (typeof addLog === 'function') {
+        addLog(`🎨 Switched to ${FLAPPY_THEMES[themeKey].name} theme!`);
+    }
+    
+    // Close shop
+    const shop = document.getElementById('flappy-theme-shop');
+    if (shop) shop.remove();
+}
+
 // Make globally available
 window.initFlappyMoney = initFlappyMoney;
 window.resetFlappyGame = resetFlappyGame;
+window.showFlappyThemeShop = showFlappyThemeShop;
+window.buyFlappyTheme = buyFlappyTheme;
+window.buyFlappyThemeWithPoints = buyFlappyThemeWithPoints;
+window.selectFlappyTheme = selectFlappyTheme;
+window.tradeFlappyPointsForCash = tradeFlappyPointsForCash;
+window.tradeFlappyPointsForTheme = tradeFlappyPointsForTheme;
+
+    // Load themes on init
+loadOwnedThemes();
+
+// Update flappy points display
+function updateFlappyPointsDisplay() {
+    const display = document.getElementById('flappy-points-count');
+    if (display) {
+        loadFlappyPoints();
+        display.textContent = flappyGame.flappyPoints;
+    }
+}
+
+// Call update on init
+if (typeof updateDisplay === 'function') {
+    const originalUpdateDisplay = updateDisplay;
+    updateDisplay = function() {
+        originalUpdateDisplay();
+        updateFlappyPointsDisplay();
+    };
+}
 

@@ -684,6 +684,13 @@ header h1 {
     overflow-x: auto;
 }
 
+#flappy-money-canvas {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 70vh !important;
+}
+
 .cards-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
