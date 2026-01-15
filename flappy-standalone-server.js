@@ -231,13 +231,29 @@ app.get('/', (req, res) => {
             flappyGame.moneyBag.velocity += flappyGame.moneyBag.gravity;
             flappyGame.moneyBag.y += flappyGame.moneyBag.velocity;
             
-            // Keep bird at fixed x position (background moves instead)
-            flappyGame.moneyBag.x = flappyGame.birdXPosition;
-            
-            // Apply horizontal movement (forward momentum) - but keep bird centered
-            if (flappyGame.moneyBag.horizontalSpeed > 0) {
-                // Move background/pipes backward instead of bird forward
-                flappyGame.moneyBag.horizontalSpeed *= 0.95; // Gradually slow down
+            // In fullscreen, bird moves forward; otherwise stays at fixed position
+            if (flappyGame.isFullscreen) {
+                // Apply horizontal movement (forward momentum) in fullscreen
+                if (flappyGame.moneyBag.horizontalSpeed > 0) {
+                    flappyGame.moneyBag.x += flappyGame.moneyBag.horizontalSpeed;
+                    flappyGame.moneyBag.horizontalSpeed *= 0.95; // Gradually slow down
+                }
+                // Keep bird in bounds horizontally
+                if (flappyGame.moneyBag.x < 50) {
+                    flappyGame.moneyBag.x = 50;
+                }
+                if (flappyGame.moneyBag.x > flappyGame.canvas.width - flappyGame.moneyBag.width - 50) {
+                    flappyGame.moneyBag.x = flappyGame.canvas.width - flappyGame.moneyBag.width - 50;
+                }
+            } else {
+                // Keep bird at fixed x position (background moves instead)
+                flappyGame.moneyBag.x = flappyGame.birdXPosition;
+                
+                // Apply horizontal movement (forward momentum) - but keep bird centered
+                if (flappyGame.moneyBag.horizontalSpeed > 0) {
+                    // Move background/pipes backward instead of bird forward
+                    flappyGame.moneyBag.horizontalSpeed *= 0.95; // Gradually slow down
+                }
             }
             
             if (flappyGame.moneyBag.y < 0) {
