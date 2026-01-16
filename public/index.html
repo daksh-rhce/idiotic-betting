@@ -330,9 +330,15 @@
     <!-- Minigames Screen -->
     <div id="minigames-screen" class="screen">
         <div class="minigames-container">
-            <h1>🎮 Minigames Arcade</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button class="btn btn-small" onclick="showScreen('mode-screen')">← Back to Modes</button>
+                <h1 style="flex: 1; text-align: center; margin: 0;">🎮 Minigames Arcade</h1>
+                <div style="width: 150px;"></div>
+            </div>
+            <div id="minigame-charge-display" style="color: #FFD700; font-weight: bold; font-size: 1.2em; margin-bottom: 20px; text-align: center;">
+                ⚡ Minigame Charge: <span id="minigame-charge-count">0</span>
+            </div>
             <div id="minigame-container" class="minigame-container"></div>
-            <button class="btn btn-large" onclick="showScreen('mode-screen')" style="margin-top: 30px;">Back to Modes</button>
         </div>
     </div>
 
