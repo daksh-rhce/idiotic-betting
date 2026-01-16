@@ -59,18 +59,24 @@ function updateMinigameDisplay() {
 // Minigame 1: Slot Machine
 function initSlotMachine() {
     const container = document.getElementById('minigame-container');
+    if (!container) return;
+    loadMinigameCharge();
     container.innerHTML = `
         <div class="minigame-slot-machine">
             <h2>🎰 Slot Machine</h2>
+            <div style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">
+                ⚡ Your Charge: <span id="slot-charge-display">${minigamesState.minigameCharge}</span>
+            </div>
             <div class="slot-display">
                 <div class="slot-reel" id="reel1">🍒</div>
                 <div class="slot-reel" id="reel2">🍒</div>
                 <div class="slot-reel" id="reel3">🍒</div>
             </div>
             <div class="slot-controls">
-                <input type="number" id="slot-bet" min="10" value="50" placeholder="Bet amount">
+                <input type="number" id="slot-bet" min="10" value="50" placeholder="Bet charge amount">
                 <button class="btn btn-large" onclick="spinSlotMachine()">SPIN</button>
             </div>
+            <button class="btn btn-small" onclick="showMinigamesMenu()" style="margin-top: 10px;">← Back to Minigames</button>
             <div id="slot-result" class="slot-result"></div>
         </div>
     `;
@@ -1538,11 +1544,12 @@ function updateSnakeGame() {
     if (head.x === snakeGame.food.x && head.y === snakeGame.food.y) {
         snakeGame.score++;
         snakeGame.money += 5;
-        const player = getMinigamePlayer();
-        if (player) player.money += 5;
-        updateMinigameDisplay();
+        // Give 5 charge per food eaten
+        addMinigameCharge(5);
         generateSnakeFood();
         updateSnakeDisplay();
+        const chargeDisplay = document.getElementById('snake-charge-display');
+        if (chargeDisplay) chargeDisplay.textContent = minigamesState.minigameCharge;
     } else {
         snakeGame.snake.pop();
     }
@@ -1574,24 +1581,26 @@ function drawSnakeGame() {
         ctx.textAlign = 'center';
         ctx.fillText('Game Over!', snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 - 20);
         ctx.fillText(`Score: ${snakeGame.score}`, snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 + 10);
-        ctx.fillText(`Money: ${snakeGame.money}`, snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 + 40);
+        ctx.fillText(`Charge Earned: ${snakeGame.money}`, snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 + 40);
     }
 }
 
 function updateSnakeDisplay() {
     const scoreEl = document.getElementById('snake-score');
     const moneyEl = document.getElementById('snake-money');
+    const chargeDisplay = document.getElementById('snake-charge-display');
     if (scoreEl) scoreEl.textContent = snakeGame.score;
     if (moneyEl) moneyEl.textContent = snakeGame.money;
+    if (chargeDisplay) chargeDisplay.textContent = minigamesState.minigameCharge;
 }
 
 function endSnakeGame() {
     const resultDiv = document.getElementById('snake-result');
     if (resultDiv) {
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${snakeGame.money} money!</div>`;
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${snakeGame.money} charge! (Total Charge: ${minigamesState.minigameCharge})</div>`;
     }
     if (typeof addLog === 'function') {
-        addLog(`🐍 Snake Game: Score ${snakeGame.score}, Earned ${snakeGame.money} money!`);
+        addLog(`🐍 Snake Game: Score ${snakeGame.score}, Earned ${snakeGame.money} charge! (Total: ${minigamesState.minigameCharge})`);
     }
 }
 
