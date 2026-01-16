@@ -803,7 +803,7 @@ function executeChaosCard(card, cardIndex, targetId) {
         if (gameState.currentPhase === 'action') {
             advanceTurn();
         }
-    }, 800);
+    }, 500);
 }
 
 function executeChaosCardEffect(player, card, target) {
@@ -1066,12 +1066,16 @@ function advanceTurn() {
     // Next player's turn
     if (currentPlayer) {
         if (currentPlayer.id === gameState.playerId) {
-            // Human player's turn
+            // Human player's turn - can skip if no cards
             if (currentPlayer.chaosCards.length > 0) {
                 const btn = document.getElementById('play-chaos-btn');
                 if (btn) btn.disabled = false;
+                addLog(`Your turn! You can play a Chaos card (optional).`);
+            } else {
+                addLog(`Your turn! You have no Chaos cards. Skipping...`);
+                // Auto-advance if no cards
+                setTimeout(() => advanceTurn(), 1000);
             }
-            addLog(`Your turn! You can play a Chaos card.`);
         } else {
             // AI player's turn - they can play chaos card
             setTimeout(() => {
@@ -1458,6 +1462,14 @@ function updateButtonStates() {
         playChaosBtn.disabled = !isPlayerTurn || !inActionPhase || !hasCards || !notPlayed || gameState.gameEnded;
     }
     
+    // Skip Turn button - only on player's turn in action phase
+    const skipTurnBtn = document.getElementById('skip-turn-btn');
+    if (skipTurnBtn) {
+        const isPlayerTurn = gameState.currentPlayerIndex === gameState.playerId;
+        const inActionPhase = gameState.currentPhase === 'action';
+        skipTurnBtn.disabled = !isPlayerTurn || !inActionPhase || gameState.gameEnded;
+    }
+    
     // Sell Property - always available if player has properties
     if (sellPropertyBtn) {
         sellPropertyBtn.disabled = player.properties.length === 0 || gameState.gameEnded;
@@ -1817,6 +1829,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (playChaosBtn) {
             playChaosBtn.addEventListener('click', playChaosCard);
+        }
+        
+        const skipTurnBtn = document.getElementById('skip-turn-btn');
+        if (skipTurnBtn) {
+            skipTurnBtn.addEventListener('click', skipTurn);
         }
         
         if (sellPropertyBtn) {
