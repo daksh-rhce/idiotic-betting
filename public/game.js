@@ -1123,15 +1123,22 @@ function advanceTurn() {
     // Next player's turn
     if (currentPlayer) {
         if (currentPlayer.id === gameState.playerId) {
-            // Human player's turn - can skip if no cards
+            // Human player's turn - chaos cards are OPTIONAL, not required
+            const skipBtn = document.getElementById('skip-turn-btn');
+            if (skipBtn) skipBtn.disabled = false;
+            
             if (currentPlayer.chaosCards.length > 0) {
                 const btn = document.getElementById('play-chaos-btn');
                 if (btn) btn.disabled = false;
-                addLog(`Your turn! You can play a Chaos card (optional).`);
+                addLog(`Your turn! You can play a Chaos card (optional) or skip.`);
             } else {
-                addLog(`Your turn! You have no Chaos cards. Skipping...`);
-                // Auto-advance if no cards
-                setTimeout(() => advanceTurn(), 1000);
+                addLog(`Your turn! You have no Chaos cards. You can skip.`);
+                // Auto-advance after a short delay if no cards
+                setTimeout(() => {
+                    if (gameState.currentPhase === 'action' && gameState.currentPlayerIndex === gameState.players.indexOf(currentPlayer)) {
+                        skipTurn();
+                    }
+                }, 2000);
             }
         } else {
             // AI player's turn - they can play chaos card
@@ -1866,7 +1873,7 @@ function skipTurn() {
     }
     
     const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-    if (currentPlayer.id !== gameState.playerId) {
+    if (!currentPlayer || currentPlayer.id !== gameState.playerId) {
         addLog("It's not your turn to skip!");
         return;
     }
