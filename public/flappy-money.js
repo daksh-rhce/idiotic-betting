@@ -8,7 +8,7 @@ let flappyGame = {
     gameOver: false,
     gameStarted: false,
     pipeGap: 375, // 1.5x larger (250 * 1.5)
-    pipeSpeed: 3.5, // Slower (was 5)
+    pipeSpeed: 2.5, // Slower (was 3.5)
     lastPipeTime: 0,
     moneyParticles: [],
     theme: 'og',
@@ -242,12 +242,8 @@ function jumpMoneyBag() {
         return;
     }
     flappyGame.moneyBag.velocity = -11; // Jump higher (was -9)
-    // Move forward more in fullscreen mode
-    if (flappyGame.isFullscreen) {
-        flappyGame.moneyBag.horizontalSpeed = 3.0; // Much more forward movement in fullscreen
-    } else {
-        flappyGame.moneyBag.horizontalSpeed = 0.8; // Less forward movement (was 1.5)
-    }
+    // Same forward movement regardless of fullscreen (fullscreen is just bigger)
+    flappyGame.moneyBag.horizontalSpeed = 0.6; // Slower forward movement
 }
 
 function updateFlappyGame() {
@@ -257,29 +253,13 @@ function updateFlappyGame() {
     flappyGame.moneyBag.velocity += flappyGame.moneyBag.gravity;
     flappyGame.moneyBag.y += flappyGame.moneyBag.velocity;
     
-    // In fullscreen, bird moves forward; otherwise stays at fixed position
-    if (flappyGame.isFullscreen) {
-        // Apply horizontal movement (forward momentum) in fullscreen
-        if (flappyGame.moneyBag.horizontalSpeed > 0) {
-            flappyGame.moneyBag.x += flappyGame.moneyBag.horizontalSpeed;
-            flappyGame.moneyBag.horizontalSpeed *= 0.95; // Gradually slow down
-        }
-        // Keep bird in bounds horizontally
-        if (flappyGame.moneyBag.x < 50) {
-            flappyGame.moneyBag.x = 50;
-        }
-        if (flappyGame.moneyBag.x > flappyGame.canvas.width - flappyGame.moneyBag.width - 50) {
-            flappyGame.moneyBag.x = flappyGame.canvas.width - flappyGame.moneyBag.width - 50;
-        }
-    } else {
-        // Keep bird at fixed x position (background moves instead)
-        flappyGame.moneyBag.x = flappyGame.birdXPosition;
-        
-        // Apply horizontal movement (forward momentum) - but keep bird centered
-        if (flappyGame.moneyBag.horizontalSpeed > 0) {
-            // Move background/pipes backward instead of bird forward
-            flappyGame.moneyBag.horizontalSpeed *= 0.95; // Gradually slow down
-        }
+    // Keep bird at fixed x position (background moves instead) - same for fullscreen and normal
+    flappyGame.moneyBag.x = flappyGame.birdXPosition;
+    
+    // Apply horizontal movement (forward momentum) - but keep bird centered
+    if (flappyGame.moneyBag.horizontalSpeed > 0) {
+        // Move background/pipes backward instead of bird forward
+        flappyGame.moneyBag.horizontalSpeed *= 0.95; // Gradually slow down
     }
     
     // Check boundaries
