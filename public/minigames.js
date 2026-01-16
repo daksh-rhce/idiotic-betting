@@ -666,6 +666,9 @@ function startMazeGame() {
     mazeGame.collectedKeys = { red: 0, blue: 0, green: 0, yellow: 0 };
     mazeGame.keys = {};
     
+    // Load selected skin
+    loadMazeSkin();
+    
     generateMazeLevel(mazeGame.level);
     
     // WASD and Arrow key controls
@@ -715,8 +718,9 @@ function generateMazeLevel(level) {
     mazeGame.walls.push({ x: canvas.width - 2, y: 0, width: 2, height: canvas.height });
     mazeGame.walls.push({ x: 0, y: canvas.height - 2, width: canvas.width, height: 2 });
     
-    // Place player at start
-    mazeGame.player = { x: cellSize + 10, y: cellSize + 10, size: 20, color: '#FF0000' };
+    // Place player at start with current skin
+    const skin = MAZE_SKINS[mazeGameSkin] || MAZE_SKINS.default;
+    mazeGame.player = { x: cellSize + 10, y: cellSize + 10, size: 20, color: skin.playerColor, symbol: skin.playerSymbol };
     
     // Place exit at end
     mazeGame.exit = { x: (cols - 2) * cellSize + 10, y: (rows - 2) * cellSize + 10, size: 30 };
@@ -1095,6 +1099,1420 @@ function mazeGameLoop() {
 }
 
 // Minigames menu
+// Minigame 12: Snake Game
+function initSnakeGame() {
+    const container = document.getElementById('minigame-container');
+    container.innerHTML = `
+        <div class="minigame-snake">
+            <h2>🐍 Snake Game</h2>
+            <p>Use Arrow Keys or WASD to control the snake! Eat food to grow. Each food = 5 money. Collision = Game Over!</p>
+            <div id="snake-canvas-container" style="text-align: center; margin: 20px 0;">
+                <canvas id="snake-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
+            </div>
+            <div id="snake-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
+                Score: <span id="snake-score">0</span> | Money: <span id="snake-money">0</span>
+            </div>
+            <button class="btn btn-large" onclick="startSnakeGame()">Start Game</button>
+            <div id="snake-result"></div>
+        </div>
+    `;
+    const canvas = document.getElementById('snake-canvas');
+    if (canvas) {
+        canvas.width = 600;
+        canvas.height = 400;
+    }
+}
+
+let snakeGame = {
+    canvas: null,
+    ctx: null,
+    snake: [{ x: 200, y: 200 }],
+    direction: { x: 10, y: 0 },
+    food: null,
+    score: 0,
+    money: 0,
+    gameStarted: false,
+    gameOver: false,
+    gridSize: 10
+};
+
+function startSnakeGame() {
+    const canvas = document.getElementById('snake-canvas');
+    if (!canvas) return;
+    snakeGame.canvas = canvas;
+    snakeGame.ctx = canvas.getContext('2d');
+    snakeGame.gameStarted = true;
+    snakeGame.gameOver = false;
+    snakeGame.snake = [{ x: 200, y: 200 }];
+    snakeGame.direction = { x: 10, y: 0 };
+    snakeGame.score = 0;
+    snakeGame.money = 0;
+    generateSnakeFood();
+    document.addEventListener('keydown', handleSnakeKeyDown);
+    snakeGameLoop();
+}
+
+function handleSnakeKeyDown(e) {
+    if (!snakeGame.gameStarted || snakeGame.gameOver) return;
+    const key = e.key;
+    if (key === 'ArrowUp' || key === 'w' || key === 'W') {
+        if (snakeGame.direction.y === 0) snakeGame.direction = { x: 0, y: -10 };
+    } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
+        if (snakeGame.direction.y === 0) snakeGame.direction = { x: 0, y: 10 };
+    } else if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+        if (snakeGame.direction.x === 0) snakeGame.direction = { x: -10, y: 0 };
+    } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+        if (snakeGame.direction.x === 0) snakeGame.direction = { x: 10, y: 0 };
+    }
+    e.preventDefault();
+}
+
+function generateSnakeFood() {
+    snakeGame.food = {
+        x: Math.floor(Math.random() * (snakeGame.canvas.width / snakeGame.gridSize)) * snakeGame.gridSize,
+        y: Math.floor(Math.random() * (snakeGame.canvas.height / snakeGame.gridSize)) * snakeGame.gridSize
+    };
+}
+
+function updateSnakeGame() {
+    if (!snakeGame.gameStarted || snakeGame.gameOver) return;
+    
+    const head = { ...snakeGame.snake[0] };
+    head.x += snakeGame.direction.x;
+    head.y += snakeGame.direction.y;
+    
+    // Check wall collision
+    if (head.x < 0 || head.x >= snakeGame.canvas.width || head.y < 0 || head.y >= snakeGame.canvas.height) {
+        snakeGame.gameOver = true;
+        endSnakeGame();
+        return;
+    }
+    
+    // Check self collision
+    if (snakeGame.snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+        snakeGame.gameOver = true;
+        endSnakeGame();
+        return;
+    }
+    
+    snakeGame.snake.unshift(head);
+    
+    // Check food
+    if (head.x === snakeGame.food.x && head.y === snakeGame.food.y) {
+        snakeGame.score++;
+        snakeGame.money += 5;
+        const player = getMinigamePlayer();
+        if (player) player.money += 5;
+        updateMinigameDisplay();
+        generateSnakeFood();
+        updateSnakeDisplay();
+    } else {
+        snakeGame.snake.pop();
+    }
+}
+
+function drawSnakeGame() {
+    if (!snakeGame.ctx) return;
+    const ctx = snakeGame.ctx;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, snakeGame.canvas.width, snakeGame.canvas.height);
+    
+    // Draw food
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(snakeGame.food.x, snakeGame.food.y, snakeGame.gridSize, snakeGame.gridSize);
+    
+    // Draw snake
+    snakeGame.snake.forEach((segment, index) => {
+        ctx.fillStyle = index === 0 ? '#00FF00' : '#00AA00';
+        ctx.fillRect(segment.x, segment.y, snakeGame.gridSize, snakeGame.gridSize);
+        ctx.strokeStyle = '#000';
+        ctx.strokeRect(segment.x, segment.y, snakeGame.gridSize, snakeGame.gridSize);
+    });
+    
+    if (snakeGame.gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, snakeGame.canvas.width, snakeGame.canvas.height);
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 30px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game Over!', snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 - 20);
+        ctx.fillText(`Score: ${snakeGame.score}`, snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 + 10);
+        ctx.fillText(`Money: ${snakeGame.money}`, snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 + 40);
+    }
+}
+
+function updateSnakeDisplay() {
+    const scoreEl = document.getElementById('snake-score');
+    const moneyEl = document.getElementById('snake-money');
+    if (scoreEl) scoreEl.textContent = snakeGame.score;
+    if (moneyEl) moneyEl.textContent = snakeGame.money;
+}
+
+function endSnakeGame() {
+    const resultDiv = document.getElementById('snake-result');
+    if (resultDiv) {
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${snakeGame.money} money!</div>`;
+    }
+    if (typeof addLog === 'function') {
+        addLog(`🐍 Snake Game: Score ${snakeGame.score}, Earned ${snakeGame.money} money!`);
+    }
+}
+
+function snakeGameLoop() {
+    if (!snakeGame.gameStarted) return;
+    updateSnakeGame();
+    drawSnakeGame();
+    updateSnakeDisplay();
+    if (!snakeGame.gameOver) {
+        setTimeout(() => snakeGameLoop(), 150);
+    }
+}
+
+// Minigame 13: Breakout/Arkanoid
+function initBreakoutGame() {
+    const container = document.getElementById('minigame-container');
+    container.innerHTML = `
+        <div class="minigame-breakout">
+            <h2>🎾 Breakout</h2>
+            <p>Use Arrow Keys or A/D to move paddle! Break blocks for money. Each block = 10 money!</p>
+            <div id="breakout-canvas-container" style="text-align: center; margin: 20px 0;">
+                <canvas id="breakout-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
+            </div>
+            <div id="breakout-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
+                Score: <span id="breakout-score">0</span> | Money: <span id="breakout-money">0</span> | Lives: <span id="breakout-lives">3</span>
+            </div>
+            <button class="btn btn-large" onclick="startBreakoutGame()">Start Game</button>
+            <div id="breakout-result"></div>
+        </div>
+    `;
+    const canvas = document.getElementById('breakout-canvas');
+    if (canvas) {
+        canvas.width = 600;
+        canvas.height = 400;
+    }
+}
+
+let breakoutGame = {
+    canvas: null,
+    ctx: null,
+    paddle: { x: 250, y: 380, width: 100, height: 10 },
+    ball: { x: 300, y: 360, radius: 8, dx: 3, dy: -3 },
+    blocks: [],
+    score: 0,
+    money: 0,
+    lives: 3,
+    gameStarted: false,
+    gameOver: false,
+    keys: {}
+};
+
+function startBreakoutGame() {
+    const canvas = document.getElementById('breakout-canvas');
+    if (!canvas) return;
+    breakoutGame.canvas = canvas;
+    breakoutGame.ctx = canvas.getContext('2d');
+    breakoutGame.gameStarted = true;
+    breakoutGame.gameOver = false;
+    breakoutGame.score = 0;
+    breakoutGame.money = 0;
+    breakoutGame.lives = 3;
+    breakoutGame.paddle = { x: 250, y: 380, width: 100, height: 10 };
+    breakoutGame.ball = { x: 300, y: 360, radius: 8, dx: 3, dy: -3 };
+    breakoutGame.blocks = [];
+    
+    // Create blocks
+    for (let row = 0; row < 5; row++) {
+        for (let col = 0; col < 8; col++) {
+            breakoutGame.blocks.push({
+                x: col * 75 + 10,
+                y: row * 25 + 50,
+                width: 70,
+                height: 20,
+                broken: false
+            });
+        }
+    }
+    
+    document.addEventListener('keydown', handleBreakoutKeyDown);
+    document.addEventListener('keyup', handleBreakoutKeyUp);
+    breakoutGameLoop();
+}
+
+function handleBreakoutKeyDown(e) {
+    if (!breakoutGame.gameStarted || breakoutGame.gameOver) return;
+    breakoutGame.keys[e.key] = true;
+    e.preventDefault();
+}
+
+function handleBreakoutKeyUp(e) {
+    breakoutGame.keys[e.key] = false;
+}
+
+function updateBreakoutGame() {
+    if (!breakoutGame.gameStarted || breakoutGame.gameOver) return;
+    
+    // Move paddle
+    const speed = 5;
+    if (breakoutGame.keys['ArrowLeft'] || breakoutGame.keys['a'] || breakoutGame.keys['A']) {
+        breakoutGame.paddle.x = Math.max(0, breakoutGame.paddle.x - speed);
+    }
+    if (breakoutGame.keys['ArrowRight'] || breakoutGame.keys['d'] || breakoutGame.keys['D']) {
+        breakoutGame.paddle.x = Math.min(breakoutGame.canvas.width - breakoutGame.paddle.width, breakoutGame.paddle.x + speed);
+    }
+    
+    // Move ball
+    breakoutGame.ball.x += breakoutGame.ball.dx;
+    breakoutGame.ball.y += breakoutGame.ball.dy;
+    
+    // Wall collisions
+    if (breakoutGame.ball.x - breakoutGame.ball.radius <= 0 || breakoutGame.ball.x + breakoutGame.ball.radius >= breakoutGame.canvas.width) {
+        breakoutGame.ball.dx = -breakoutGame.ball.dx;
+    }
+    if (breakoutGame.ball.y - breakoutGame.ball.radius <= 0) {
+        breakoutGame.ball.dy = -breakoutGame.ball.dy;
+    }
+    
+    // Paddle collision
+    if (breakoutGame.ball.y + breakoutGame.ball.radius >= breakoutGame.paddle.y &&
+        breakoutGame.ball.x >= breakoutGame.paddle.x &&
+        breakoutGame.ball.x <= breakoutGame.paddle.x + breakoutGame.paddle.width) {
+        breakoutGame.ball.dy = -Math.abs(breakoutGame.ball.dy);
+        const hitPos = (breakoutGame.ball.x - breakoutGame.paddle.x) / breakoutGame.paddle.width;
+        breakoutGame.ball.dx = (hitPos - 0.5) * 6;
+    }
+    
+    // Block collisions
+    breakoutGame.blocks.forEach(block => {
+        if (!block.broken &&
+            breakoutGame.ball.x + breakoutGame.ball.radius >= block.x &&
+            breakoutGame.ball.x - breakoutGame.ball.radius <= block.x + block.width &&
+            breakoutGame.ball.y + breakoutGame.ball.radius >= block.y &&
+            breakoutGame.ball.y - breakoutGame.ball.radius <= block.y + block.height) {
+            block.broken = true;
+            breakoutGame.score += 10;
+            breakoutGame.money += 10;
+            const player = getMinigamePlayer();
+            if (player) player.money += 10;
+            updateMinigameDisplay();
+            breakoutGame.ball.dy = -breakoutGame.ball.dy;
+            updateBreakoutDisplay();
+        }
+    });
+    
+    // Ball lost
+    if (breakoutGame.ball.y > breakoutGame.canvas.height) {
+        breakoutGame.lives--;
+        if (breakoutGame.lives <= 0) {
+            breakoutGame.gameOver = true;
+            endBreakoutGame();
+        } else {
+            breakoutGame.ball = { x: 300, y: 360, radius: 8, dx: 3, dy: -3 };
+        }
+    }
+    
+    // Win condition
+    if (breakoutGame.blocks.every(b => b.broken)) {
+        breakoutGame.gameOver = true;
+        const bonus = 100;
+        breakoutGame.money += bonus;
+        const player = getMinigamePlayer();
+        if (player) player.money += bonus;
+        updateMinigameDisplay();
+        endBreakoutGame();
+    }
+}
+
+function drawBreakoutGame() {
+    if (!breakoutGame.ctx) return;
+    const ctx = breakoutGame.ctx;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, breakoutGame.canvas.width, breakoutGame.canvas.height);
+    
+    // Draw blocks
+    breakoutGame.blocks.forEach(block => {
+        if (!block.broken) {
+            ctx.fillStyle = '#FF0000';
+            ctx.fillRect(block.x, block.y, block.width, block.height);
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(block.x, block.y, block.width, block.height);
+        }
+    });
+    
+    // Draw paddle
+    ctx.fillStyle = '#00FF00';
+    ctx.fillRect(breakoutGame.paddle.x, breakoutGame.paddle.y, breakoutGame.paddle.width, breakoutGame.paddle.height);
+    
+    // Draw ball
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(breakoutGame.ball.x, breakoutGame.ball.y, breakoutGame.ball.radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    if (breakoutGame.gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, breakoutGame.canvas.width, breakoutGame.canvas.height);
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 30px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(breakoutGame.blocks.every(b => b.broken) ? 'You Win!' : 'Game Over!', breakoutGame.canvas.width / 2, breakoutGame.canvas.height / 2);
+        ctx.fillText(`Money: ${breakoutGame.money}`, breakoutGame.canvas.width / 2, breakoutGame.canvas.height / 2 + 40);
+    }
+}
+
+function updateBreakoutDisplay() {
+    const scoreEl = document.getElementById('breakout-score');
+    const moneyEl = document.getElementById('breakout-money');
+    const livesEl = document.getElementById('breakout-lives');
+    if (scoreEl) scoreEl.textContent = breakoutGame.score;
+    if (moneyEl) moneyEl.textContent = breakoutGame.money;
+    if (livesEl) livesEl.textContent = breakoutGame.lives;
+}
+
+function endBreakoutGame() {
+    const resultDiv = document.getElementById('breakout-result');
+    if (resultDiv) {
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${breakoutGame.money} money!</div>`;
+    }
+    if (typeof addLog === 'function') {
+        addLog(`🎾 Breakout: Score ${breakoutGame.score}, Earned ${breakoutGame.money} money!`);
+    }
+}
+
+function breakoutGameLoop() {
+    if (!breakoutGame.gameStarted) return;
+    updateBreakoutGame();
+    drawBreakoutGame();
+    updateBreakoutDisplay();
+    if (!breakoutGame.gameOver) {
+        requestAnimationFrame(breakoutGameLoop);
+    }
+}
+
+// Minigame 14: Tetris
+function initTetrisGame() {
+    const container = document.getElementById('minigame-container');
+    container.innerHTML = `
+        <div class="minigame-tetris">
+            <h2>🧩 Tetris</h2>
+            <p>Arrow Keys: Left/Right to move, Down to drop, Up to rotate. Clear lines for money! Each line = 50 money!</p>
+            <div id="tetris-canvas-container" style="text-align: center; margin: 20px 0;">
+                <canvas id="tetris-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
+            </div>
+            <div id="tetris-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
+                Score: <span id="tetris-score">0</span> | Money: <span id="tetris-money">0</span> | Lines: <span id="tetris-lines">0</span>
+            </div>
+            <button class="btn btn-large" onclick="startTetrisGame()">Start Game</button>
+            <div id="tetris-result"></div>
+        </div>
+    `;
+    const canvas = document.getElementById('tetris-canvas');
+    if (canvas) {
+        canvas.width = 300;
+        canvas.height = 600;
+    }
+}
+
+let tetrisGame = {
+    canvas: null,
+    ctx: null,
+    grid: [],
+    currentPiece: null,
+    nextPiece: null,
+    score: 0,
+    money: 0,
+    lines: 0,
+    gameStarted: false,
+    gameOver: false,
+    dropTime: 0,
+    lastTime: 0,
+    gridWidth: 10,
+    gridHeight: 20,
+    blockSize: 30
+};
+
+const tetrisPieces = [
+    [[1,1,1,1]], // I
+    [[1,1],[1,1]], // O
+    [[0,1,0],[1,1,1]], // T
+    [[0,1,1],[1,1,0]], // S
+    [[1,1,0],[0,1,1]], // Z
+    [[1,0,0],[1,1,1]], // J
+    [[0,0,1],[1,1,1]]  // L
+];
+
+function startTetrisGame() {
+    const canvas = document.getElementById('tetris-canvas');
+    if (!canvas) return;
+    tetrisGame.canvas = canvas;
+    tetrisGame.ctx = canvas.getContext('2d');
+    tetrisGame.gameStarted = true;
+    tetrisGame.gameOver = false;
+    tetrisGame.score = 0;
+    tetrisGame.money = 0;
+    tetrisGame.lines = 0;
+    
+    // Initialize grid
+    tetrisGame.grid = Array(tetrisGame.gridHeight).fill().map(() => Array(tetrisGame.gridWidth).fill(0));
+    
+    spawnTetrisPiece();
+    document.addEventListener('keydown', handleTetrisKeyDown);
+    tetrisGame.lastTime = performance.now();
+    tetrisGameLoop();
+}
+
+function spawnTetrisPiece() {
+    const shape = tetrisPieces[Math.floor(Math.random() * tetrisPieces.length)];
+    tetrisGame.currentPiece = {
+        shape: shape.map(row => [...row]),
+        x: Math.floor(tetrisGame.gridWidth / 2) - 1,
+        y: 0,
+        color: `hsl(${Math.random() * 360}, 70%, 50%)`
+    };
+}
+
+function handleTetrisKeyDown(e) {
+    if (!tetrisGame.gameStarted || tetrisGame.gameOver) return;
+    const key = e.key;
+    if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+        moveTetrisPiece(-1, 0);
+    } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+        moveTetrisPiece(1, 0);
+    } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
+        moveTetrisPiece(0, 1);
+    } else if (key === 'ArrowUp' || key === 'w' || key === 'W') {
+        rotateTetrisPiece();
+    }
+    e.preventDefault();
+}
+
+function moveTetrisPiece(dx, dy) {
+    const newX = tetrisGame.currentPiece.x + dx;
+    const newY = tetrisGame.currentPiece.y + dy;
+    if (isValidTetrisPosition(tetrisGame.currentPiece.shape, newX, newY)) {
+        tetrisGame.currentPiece.x = newX;
+        tetrisGame.currentPiece.y = newY;
+    } else if (dy > 0) {
+        lockTetrisPiece();
+    }
+}
+
+function rotateTetrisPiece() {
+    const rotated = tetrisGame.currentPiece.shape[0].map((_, i) =>
+        tetrisGame.currentPiece.shape.map(row => row[i]).reverse()
+    );
+    if (isValidTetrisPosition(rotated, tetrisGame.currentPiece.x, tetrisGame.currentPiece.y)) {
+        tetrisGame.currentPiece.shape = rotated;
+    }
+}
+
+function isValidTetrisPosition(shape, x, y) {
+    for (let row = 0; row < shape.length; row++) {
+        for (let col = 0; col < shape[row].length; col++) {
+            if (shape[row][col]) {
+                const newX = x + col;
+                const newY = y + row;
+                if (newX < 0 || newX >= tetrisGame.gridWidth || 
+                    newY >= tetrisGame.gridHeight ||
+                    (newY >= 0 && tetrisGame.grid[newY][newX])) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+function lockTetrisPiece() {
+    tetrisGame.currentPiece.shape.forEach((row, rowIdx) => {
+        row.forEach((cell, colIdx) => {
+            if (cell) {
+                const y = tetrisGame.currentPiece.y + rowIdx;
+                const x = tetrisGame.currentPiece.x + colIdx;
+                if (y >= 0) {
+                    tetrisGame.grid[y][x] = tetrisGame.currentPiece.color;
+                } else {
+                    tetrisGame.gameOver = true;
+                    endTetrisGame();
+                }
+            }
+        });
+    });
+    clearTetrisLines();
+    spawnTetrisPiece();
+}
+
+function clearTetrisLines() {
+    let linesCleared = 0;
+    for (let y = tetrisGame.gridHeight - 1; y >= 0; y--) {
+        if (tetrisGame.grid[y].every(cell => cell !== 0)) {
+            tetrisGame.grid.splice(y, 1);
+            tetrisGame.grid.unshift(Array(tetrisGame.gridWidth).fill(0));
+            linesCleared++;
+            y++;
+        }
+    }
+    if (linesCleared > 0) {
+        tetrisGame.lines += linesCleared;
+        tetrisGame.score += linesCleared * 100;
+        const moneyEarned = linesCleared * 50;
+        tetrisGame.money += moneyEarned;
+        const player = getMinigamePlayer();
+        if (player) player.money += moneyEarned;
+        updateMinigameDisplay();
+        updateTetrisDisplay();
+    }
+}
+
+function updateTetrisGame(time) {
+    if (!tetrisGame.gameStarted || tetrisGame.gameOver) return;
+    
+    const deltaTime = time - tetrisGame.lastTime;
+    tetrisGame.dropTime += deltaTime;
+    
+    if (tetrisGame.dropTime > 1000) {
+        moveTetrisPiece(0, 1);
+        tetrisGame.dropTime = 0;
+    }
+    
+    tetrisGame.lastTime = time;
+}
+
+function drawTetrisGame() {
+    if (!tetrisGame.ctx) return;
+    const ctx = tetrisGame.ctx;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, tetrisGame.canvas.width, tetrisGame.canvas.height);
+    
+    // Draw grid
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    for (let y = 0; y < tetrisGame.gridHeight; y++) {
+        for (let x = 0; x < tetrisGame.gridWidth; x++) {
+            if (tetrisGame.grid[y][x]) {
+                ctx.fillStyle = tetrisGame.grid[y][x];
+                ctx.fillRect(x * tetrisGame.blockSize, y * tetrisGame.blockSize, tetrisGame.blockSize, tetrisGame.blockSize);
+                ctx.strokeRect(x * tetrisGame.blockSize, y * tetrisGame.blockSize, tetrisGame.blockSize, tetrisGame.blockSize);
+            }
+        }
+    }
+    
+    // Draw current piece
+    if (tetrisGame.currentPiece) {
+        ctx.fillStyle = tetrisGame.currentPiece.color;
+        tetrisGame.currentPiece.shape.forEach((row, rowIdx) => {
+            row.forEach((cell, colIdx) => {
+                if (cell) {
+                    const x = (tetrisGame.currentPiece.x + colIdx) * tetrisGame.blockSize;
+                    const y = (tetrisGame.currentPiece.y + rowIdx) * tetrisGame.blockSize;
+                    if (y >= 0) {
+                        ctx.fillRect(x, y, tetrisGame.blockSize, tetrisGame.blockSize);
+                        ctx.strokeStyle = '#FFF';
+                        ctx.strokeRect(x, y, tetrisGame.blockSize, tetrisGame.blockSize);
+                    }
+                }
+            });
+        });
+    }
+    
+    if (tetrisGame.gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, tetrisGame.canvas.width, tetrisGame.canvas.height);
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 30px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game Over!', tetrisGame.canvas.width / 2, tetrisGame.canvas.height / 2);
+        ctx.fillText(`Money: ${tetrisGame.money}`, tetrisGame.canvas.width / 2, tetrisGame.canvas.height / 2 + 40);
+    }
+}
+
+function updateTetrisDisplay() {
+    const scoreEl = document.getElementById('tetris-score');
+    const moneyEl = document.getElementById('tetris-money');
+    const linesEl = document.getElementById('tetris-lines');
+    if (scoreEl) scoreEl.textContent = tetrisGame.score;
+    if (moneyEl) moneyEl.textContent = tetrisGame.money;
+    if (linesEl) linesEl.textContent = tetrisGame.lines;
+}
+
+function endTetrisGame() {
+    const resultDiv = document.getElementById('tetris-result');
+    if (resultDiv) {
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${tetrisGame.money} money!</div>`;
+    }
+    if (typeof addLog === 'function') {
+        addLog(`🧩 Tetris: Score ${tetrisGame.score}, Lines ${tetrisGame.lines}, Earned ${tetrisGame.money} money!`);
+    }
+}
+
+function tetrisGameLoop(time) {
+    if (!tetrisGame.gameStarted) return;
+    updateTetrisGame(time);
+    drawTetrisGame();
+    updateTetrisDisplay();
+    if (!tetrisGame.gameOver) {
+        requestAnimationFrame(tetrisGameLoop);
+    }
+}
+
+// Minigame 15: Pong
+function initPongGame() {
+    const container = document.getElementById('minigame-container');
+    container.innerHTML = `
+        <div class="minigame-pong">
+            <h2>🏓 Pong</h2>
+            <p>Use W/S or Arrow Up/Down to move paddle! Score points for money. Each point = 20 money!</p>
+            <div id="pong-canvas-container" style="text-align: center; margin: 20px 0;">
+                <canvas id="pong-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
+            </div>
+            <div id="pong-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
+                Player: <span id="pong-player-score">0</span> | AI: <span id="pong-ai-score">0</span> | Money: <span id="pong-money">0</span>
+            </div>
+            <button class="btn btn-large" onclick="startPongGame()">Start Game</button>
+            <div id="pong-result"></div>
+        </div>
+    `;
+    const canvas = document.getElementById('pong-canvas');
+    if (canvas) {
+        canvas.width = 800;
+        canvas.height = 400;
+    }
+}
+
+let pongGame = {
+    canvas: null,
+    ctx: null,
+    playerPaddle: { x: 20, y: 150, width: 10, height: 100, speed: 5 },
+    aiPaddle: { x: 770, y: 150, width: 10, height: 100, speed: 3 },
+    ball: { x: 400, y: 200, radius: 10, dx: 4, dy: 4 },
+    playerScore: 0,
+    aiScore: 0,
+    money: 0,
+    gameStarted: false,
+    gameOver: false,
+    keys: {}
+};
+
+function startPongGame() {
+    const canvas = document.getElementById('pong-canvas');
+    if (!canvas) return;
+    pongGame.canvas = canvas;
+    pongGame.ctx = canvas.getContext('2d');
+    pongGame.gameStarted = true;
+    pongGame.gameOver = false;
+    pongGame.playerScore = 0;
+    pongGame.aiScore = 0;
+    pongGame.money = 0;
+    pongGame.playerPaddle = { x: 20, y: 150, width: 10, height: 100, speed: 5 };
+    pongGame.aiPaddle = { x: 770, y: 150, width: 10, height: 100, speed: 3 };
+    pongGame.ball = { x: 400, y: 200, radius: 10, dx: 4, dy: 4 };
+    pongGame.keys = {};
+    document.addEventListener('keydown', handlePongKeyDown);
+    document.addEventListener('keyup', handlePongKeyUp);
+    pongGameLoop();
+}
+
+function handlePongKeyDown(e) {
+    if (!pongGame.gameStarted || pongGame.gameOver) return;
+    pongGame.keys[e.key] = true;
+    e.preventDefault();
+}
+
+function handlePongKeyUp(e) {
+    pongGame.keys[e.key] = false;
+}
+
+function updatePongGame() {
+    if (!pongGame.gameStarted || pongGame.gameOver) return;
+    
+    // Move player paddle
+    if (pongGame.keys['ArrowUp'] || pongGame.keys['w'] || pongGame.keys['W']) {
+        pongGame.playerPaddle.y = Math.max(0, pongGame.playerPaddle.y - pongGame.playerPaddle.speed);
+    }
+    if (pongGame.keys['ArrowDown'] || pongGame.keys['s'] || pongGame.keys['S']) {
+        pongGame.playerPaddle.y = Math.min(pongGame.canvas.height - pongGame.playerPaddle.height, pongGame.playerPaddle.y + pongGame.playerPaddle.speed);
+    }
+    
+    // AI paddle (simple follow ball)
+    const aiCenter = pongGame.aiPaddle.y + pongGame.aiPaddle.height / 2;
+    if (aiCenter < pongGame.ball.y - 10) {
+        pongGame.aiPaddle.y = Math.min(pongGame.canvas.height - pongGame.aiPaddle.height, pongGame.aiPaddle.y + pongGame.aiPaddle.speed);
+    } else if (aiCenter > pongGame.ball.y + 10) {
+        pongGame.aiPaddle.y = Math.max(0, pongGame.aiPaddle.y - pongGame.aiPaddle.speed);
+    }
+    
+    // Move ball
+    pongGame.ball.x += pongGame.ball.dx;
+    pongGame.ball.y += pongGame.ball.dy;
+    
+    // Ball wall collisions
+    if (pongGame.ball.y - pongGame.ball.radius <= 0 || pongGame.ball.y + pongGame.ball.radius >= pongGame.canvas.height) {
+        pongGame.ball.dy = -pongGame.ball.dy;
+    }
+    
+    // Paddle collisions
+    if (pongGame.ball.x - pongGame.ball.radius <= pongGame.playerPaddle.x + pongGame.playerPaddle.width &&
+        pongGame.ball.y >= pongGame.playerPaddle.y &&
+        pongGame.ball.y <= pongGame.playerPaddle.y + pongGame.playerPaddle.height &&
+        pongGame.ball.dx < 0) {
+        pongGame.ball.dx = -pongGame.ball.dx;
+        pongGame.ball.dx *= 1.1; // Speed up
+    }
+    
+    if (pongGame.ball.x + pongGame.ball.radius >= pongGame.aiPaddle.x &&
+        pongGame.ball.y >= pongGame.aiPaddle.y &&
+        pongGame.ball.y <= pongGame.aiPaddle.y + pongGame.aiPaddle.height &&
+        pongGame.ball.dx > 0) {
+        pongGame.ball.dx = -pongGame.ball.dx;
+        pongGame.ball.dx *= 1.1;
+    }
+    
+    // Score
+    if (pongGame.ball.x < 0) {
+        pongGame.aiScore++;
+        resetPongBall();
+    } else if (pongGame.ball.x > pongGame.canvas.width) {
+        pongGame.playerScore++;
+        pongGame.money += 20;
+        const player = getMinigamePlayer();
+        if (player) player.money += 20;
+        updateMinigameDisplay();
+        resetPongBall();
+    }
+    
+    // Game over condition
+    if (pongGame.playerScore >= 10 || pongGame.aiScore >= 10) {
+        pongGame.gameOver = true;
+        endPongGame();
+    }
+    
+    updatePongDisplay();
+}
+
+function resetPongBall() {
+    pongGame.ball = {
+        x: pongGame.canvas.width / 2,
+        y: pongGame.canvas.height / 2,
+        radius: 10,
+        dx: (Math.random() > 0.5 ? 1 : -1) * 4,
+        dy: (Math.random() > 0.5 ? 1 : -1) * 4
+    };
+}
+
+function drawPongGame() {
+    if (!pongGame.ctx) return;
+    const ctx = pongGame.ctx;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, pongGame.canvas.width, pongGame.canvas.height);
+    
+    // Draw center line
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath();
+    ctx.moveTo(pongGame.canvas.width / 2, 0);
+    ctx.lineTo(pongGame.canvas.width / 2, pongGame.canvas.height);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Draw paddles
+    ctx.fillStyle = '#00FF00';
+    ctx.fillRect(pongGame.playerPaddle.x, pongGame.playerPaddle.y, pongGame.playerPaddle.width, pongGame.playerPaddle.height);
+    ctx.fillStyle = '#FF0000';
+    ctx.fillRect(pongGame.aiPaddle.x, pongGame.aiPaddle.y, pongGame.aiPaddle.width, pongGame.aiPaddle.height);
+    
+    // Draw ball
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(pongGame.ball.x, pongGame.ball.y, pongGame.ball.radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw scores
+    ctx.fillStyle = '#FFD700';
+    ctx.font = 'bold 40px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(pongGame.playerScore, pongGame.canvas.width / 4, 50);
+    ctx.fillText(pongGame.aiScore, 3 * pongGame.canvas.width / 4, 50);
+    
+    if (pongGame.gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, pongGame.canvas.width, pongGame.canvas.height);
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 40px Arial';
+        ctx.fillText(pongGame.playerScore >= 10 ? 'You Win!' : 'AI Wins!', pongGame.canvas.width / 2, pongGame.canvas.height / 2);
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText(`Money Earned: ${pongGame.money}`, pongGame.canvas.width / 2, pongGame.canvas.height / 2 + 50);
+    }
+}
+
+function updatePongDisplay() {
+    const playerScoreEl = document.getElementById('pong-player-score');
+    const aiScoreEl = document.getElementById('pong-ai-score');
+    const moneyEl = document.getElementById('pong-money');
+    if (playerScoreEl) playerScoreEl.textContent = pongGame.playerScore;
+    if (aiScoreEl) aiScoreEl.textContent = pongGame.aiScore;
+    if (moneyEl) moneyEl.textContent = pongGame.money;
+}
+
+function endPongGame() {
+    const resultDiv = document.getElementById('pong-result');
+    if (resultDiv) {
+        resultDiv.innerHTML = `<div style="color: ${pongGame.playerScore >= 10 ? '#00ff00' : '#ff0000'}; font-weight: bold; font-size: 1.5em;">${pongGame.playerScore >= 10 ? 'You Win!' : 'AI Wins!'} Earned ${pongGame.money} money!</div>`;
+    }
+    if (typeof addLog === 'function') {
+        addLog(`🏓 Pong: Final Score ${pongGame.playerScore}-${pongGame.aiScore}, Earned ${pongGame.money} money!`);
+    }
+}
+
+function pongGameLoop() {
+    if (!pongGame.gameStarted) return;
+    updatePongGame();
+    drawPongGame();
+    if (!pongGame.gameOver) {
+        requestAnimationFrame(pongGameLoop);
+    }
+}
+
+// Minigame 16: Pac-Man Style
+function initPacManGame() {
+    const container = document.getElementById('minigame-container');
+    container.innerHTML = `
+        <div class="minigame-pacman">
+            <h2>👻 Pac-Man Style</h2>
+            <p>Use Arrow Keys or WASD to move! Collect dots for money (2 money each). Avoid ghosts!</p>
+            <div id="pacman-canvas-container" style="text-align: center; margin: 20px 0;">
+                <canvas id="pacman-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
+            </div>
+            <div id="pacman-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
+                Score: <span id="pacman-score">0</span> | Money: <span id="pacman-money">0</span> | Lives: <span id="pacman-lives">3</span>
+            </div>
+            <button class="btn btn-large" onclick="startPacManGame()">Start Game</button>
+            <div id="pacman-result"></div>
+        </div>
+    `;
+    const canvas = document.getElementById('pacman-canvas');
+    if (canvas) {
+        canvas.width = 600;
+        canvas.height = 400;
+    }
+}
+
+let pacManGame = {
+    canvas: null,
+    ctx: null,
+    player: { x: 50, y: 50, size: 20, direction: 'right', nextDirection: 'right' },
+    dots: [],
+    ghosts: [],
+    score: 0,
+    money: 0,
+    lives: 3,
+    gameStarted: false,
+    gameOver: false,
+    keys: {},
+    gridSize: 20
+};
+
+function startPacManGame() {
+    const canvas = document.getElementById('pacman-canvas');
+    if (!canvas) return;
+    pacManGame.canvas = canvas;
+    pacManGame.ctx = canvas.getContext('2d');
+    pacManGame.gameStarted = true;
+    pacManGame.gameOver = false;
+    pacManGame.score = 0;
+    pacManGame.money = 0;
+    pacManGame.lives = 3;
+    pacManGame.player = { x: 50, y: 50, size: 20, direction: 'right', nextDirection: 'right' };
+    pacManGame.dots = [];
+    pacManGame.ghosts = [];
+    
+    // Generate dots
+    for (let y = 30; y < canvas.height - 30; y += 30) {
+        for (let x = 30; x < canvas.width - 30; x += 30) {
+            if (Math.random() > 0.3) { // 70% chance of dot
+                pacManGame.dots.push({ x, y, collected: false });
+            }
+        }
+    }
+    
+    // Generate ghosts
+    for (let i = 0; i < 3; i++) {
+        pacManGame.ghosts.push({
+            x: Math.random() * (canvas.width - 40) + 20,
+            y: Math.random() * (canvas.height - 40) + 20,
+            size: 20,
+            dx: (Math.random() > 0.5 ? 1 : -1) * 2,
+            dy: (Math.random() > 0.5 ? 1 : -1) * 2,
+            color: ['#FF0000', '#00FFFF', '#FFFF00'][i]
+        });
+    }
+    
+    document.addEventListener('keydown', handlePacManKeyDown);
+    pacManGameLoop();
+}
+
+function handlePacManKeyDown(e) {
+    if (!pacManGame.gameStarted || pacManGame.gameOver) return;
+    const key = e.key;
+    if (key === 'ArrowUp' || key === 'w' || key === 'W') {
+        pacManGame.player.nextDirection = 'up';
+    } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
+        pacManGame.player.nextDirection = 'down';
+    } else if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+        pacManGame.player.nextDirection = 'left';
+    } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+        pacManGame.player.nextDirection = 'right';
+    }
+    e.preventDefault();
+}
+
+function updatePacManGame() {
+    if (!pacManGame.gameStarted || pacManGame.gameOver) return;
+    
+    const speed = 3;
+    pacManGame.player.direction = pacManGame.player.nextDirection;
+    
+    // Move player
+    if (pacManGame.player.direction === 'up') {
+        pacManGame.player.y = Math.max(0, pacManGame.player.y - speed);
+    } else if (pacManGame.player.direction === 'down') {
+        pacManGame.player.y = Math.min(pacManGame.canvas.height - pacManGame.player.size, pacManGame.player.y + speed);
+    } else if (pacManGame.player.direction === 'left') {
+        pacManGame.player.x = Math.max(0, pacManGame.player.x - speed);
+    } else if (pacManGame.player.direction === 'right') {
+        pacManGame.player.x = Math.min(pacManGame.canvas.width - pacManGame.player.size, pacManGame.player.x + speed);
+    }
+    
+    // Collect dots
+    pacManGame.dots.forEach(dot => {
+        if (!dot.collected) {
+            const dx = dot.x - (pacManGame.player.x + pacManGame.player.size / 2);
+            const dy = dot.y - (pacManGame.player.y + pacManGame.player.size / 2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < 15) {
+                dot.collected = true;
+                pacManGame.score += 10;
+                pacManGame.money += 2;
+                const player = getMinigamePlayer();
+                if (player) player.money += 2;
+                updateMinigameDisplay();
+                updatePacManDisplay();
+            }
+        }
+    });
+    
+    // Move ghosts
+    pacManGame.ghosts.forEach(ghost => {
+        ghost.x += ghost.dx;
+        ghost.y += ghost.dy;
+        
+        // Bounce off walls
+        if (ghost.x <= 0 || ghost.x >= pacManGame.canvas.width - ghost.size) {
+            ghost.dx = -ghost.dx;
+        }
+        if (ghost.y <= 0 || ghost.y >= pacManGame.canvas.height - ghost.size) {
+            ghost.dy = -ghost.dy;
+        }
+        
+        // Check collision with player
+        const dx = ghost.x - pacManGame.player.x;
+        const dy = ghost.y - pacManGame.player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < (ghost.size + pacManGame.player.size) / 2) {
+            pacManGame.lives--;
+            if (pacManGame.lives <= 0) {
+                pacManGame.gameOver = true;
+                endPacManGame();
+            } else {
+                // Reset position
+                pacManGame.player.x = 50;
+                pacManGame.player.y = 50;
+            }
+        }
+    });
+    
+    // Win condition
+    if (pacManGame.dots.every(d => d.collected)) {
+        pacManGame.gameOver = true;
+        const bonus = 100;
+        pacManGame.money += bonus;
+        const player = getMinigamePlayer();
+        if (player) player.money += bonus;
+        updateMinigameDisplay();
+        endPacManGame();
+    }
+}
+
+function drawPacManGame() {
+    if (!pacManGame.ctx) return;
+    const ctx = pacManGame.ctx;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, pacManGame.canvas.width, pacManGame.canvas.height);
+    
+    // Draw dots
+    ctx.fillStyle = '#FFD700';
+    pacManGame.dots.forEach(dot => {
+        if (!dot.collected) {
+            ctx.beginPath();
+            ctx.arc(dot.x, dot.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    });
+    
+    // Draw ghosts
+    pacManGame.ghosts.forEach(ghost => {
+        ctx.fillStyle = ghost.color;
+        ctx.beginPath();
+        ctx.arc(ghost.x + ghost.size / 2, ghost.y + ghost.size / 2, ghost.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+        // Eyes
+        ctx.fillStyle = '#FFF';
+        ctx.beginPath();
+        ctx.arc(ghost.x + ghost.size / 2 - 5, ghost.y + ghost.size / 2 - 3, 3, 0, Math.PI * 2);
+        ctx.arc(ghost.x + ghost.size / 2 + 5, ghost.y + ghost.size / 2 - 3, 3, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    
+    // Draw player (Pac-Man)
+    ctx.fillStyle = '#FFFF00';
+    const angle = { up: -Math.PI / 2, down: Math.PI / 2, left: Math.PI, right: 0 }[pacManGame.player.direction] || 0;
+    ctx.beginPath();
+    ctx.arc(pacManGame.player.x + pacManGame.player.size / 2, pacManGame.player.y + pacManGame.player.size / 2, pacManGame.player.size / 2, angle + 0.3, angle + 2 * Math.PI - 0.3);
+    ctx.lineTo(pacManGame.player.x + pacManGame.player.size / 2, pacManGame.player.y + pacManGame.player.size / 2);
+    ctx.closePath();
+    ctx.fill();
+    
+    if (pacManGame.gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, pacManGame.canvas.width, pacManGame.canvas.height);
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 30px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game Over!', pacManGame.canvas.width / 2, pacManGame.canvas.height / 2);
+        ctx.fillText(`Money: ${pacManGame.money}`, pacManGame.canvas.width / 2, pacManGame.canvas.height / 2 + 40);
+    }
+}
+
+function updatePacManDisplay() {
+    const scoreEl = document.getElementById('pacman-score');
+    const moneyEl = document.getElementById('pacman-money');
+    const livesEl = document.getElementById('pacman-lives');
+    if (scoreEl) scoreEl.textContent = pacManGame.score;
+    if (moneyEl) moneyEl.textContent = pacManGame.money;
+    if (livesEl) livesEl.textContent = pacManGame.lives;
+}
+
+function endPacManGame() {
+    const resultDiv = document.getElementById('pacman-result');
+    if (resultDiv) {
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${pacManGame.money} money!</div>`;
+    }
+    if (typeof addLog === 'function') {
+        addLog(`👻 Pac-Man: Score ${pacManGame.score}, Earned ${pacManGame.money} money!`);
+    }
+}
+
+function pacManGameLoop() {
+    if (!pacManGame.gameStarted) return;
+    updatePacManGame();
+    drawPacManGame();
+    updatePacManDisplay();
+    if (!pacManGame.gameOver) {
+        requestAnimationFrame(pacManGameLoop);
+    }
+}
+
+// Minigame 17: Space Invaders
+function initSpaceInvadersGame() {
+    const container = document.getElementById('minigame-container');
+    container.innerHTML = `
+        <div class="minigame-space-invaders">
+            <h2>👾 Space Invaders</h2>
+            <p>Arrow Keys or A/D to move, Spacebar to shoot! Destroy aliens for money. Each alien = 15 money!</p>
+            <div id="space-invaders-canvas-container" style="text-align: center; margin: 20px 0;">
+                <canvas id="space-invaders-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
+            </div>
+            <div id="space-invaders-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
+                Score: <span id="space-invaders-score">0</span> | Money: <span id="space-invaders-money">0</span> | Lives: <span id="space-invaders-lives">3</span>
+            </div>
+            <button class="btn btn-large" onclick="startSpaceInvadersGame()">Start Game</button>
+            <div id="space-invaders-result"></div>
+        </div>
+    `;
+    const canvas = document.getElementById('space-invaders-canvas');
+    if (canvas) {
+        canvas.width = 600;
+        canvas.height = 500;
+    }
+}
+
+let spaceInvadersGame = {
+    canvas: null,
+    ctx: null,
+    player: { x: 300, y: 450, width: 50, height: 20, speed: 5 },
+    bullets: [],
+    aliens: [],
+    alienBullets: [],
+    score: 0,
+    money: 0,
+    lives: 3,
+    gameStarted: false,
+    gameOver: false,
+    keys: {},
+    lastShot: 0
+};
+
+function startSpaceInvadersGame() {
+    const canvas = document.getElementById('space-invaders-canvas');
+    if (!canvas) return;
+    spaceInvadersGame.canvas = canvas;
+    spaceInvadersGame.ctx = canvas.getContext('2d');
+    spaceInvadersGame.gameStarted = true;
+    spaceInvadersGame.gameOver = false;
+    spaceInvadersGame.score = 0;
+    spaceInvadersGame.money = 0;
+    spaceInvadersGame.lives = 3;
+    spaceInvadersGame.player = { x: 300, y: 450, width: 50, height: 20, speed: 5 };
+    spaceInvadersGame.bullets = [];
+    spaceInvadersGame.alienBullets = [];
+    spaceInvadersGame.aliens = [];
+    
+    // Create aliens grid
+    for (let row = 0; row < 4; row++) {
+        for (let col = 0; col < 8; col++) {
+            spaceInvadersGame.aliens.push({
+                x: col * 70 + 50,
+                y: row * 40 + 50,
+                width: 40,
+                height: 30,
+                destroyed: false,
+                dx: 1
+            });
+        }
+    }
+    
+    document.addEventListener('keydown', handleSpaceInvadersKeyDown);
+    document.addEventListener('keyup', handleSpaceInvadersKeyUp);
+    spaceInvadersGameLoop();
+}
+
+function handleSpaceInvadersKeyDown(e) {
+    if (!spaceInvadersGame.gameStarted || spaceInvadersGame.gameOver) return;
+    spaceInvadersGame.keys[e.key] = true;
+    
+    if (e.key === ' ' || e.code === 'Space') {
+        const now = Date.now();
+        if (now - spaceInvadersGame.lastShot > 300) { // Limit fire rate
+            spaceInvadersGame.bullets.push({
+                x: spaceInvadersGame.player.x + spaceInvadersGame.player.width / 2,
+                y: spaceInvadersGame.player.y,
+                width: 4,
+                height: 10,
+                dy: -7
+            });
+            spaceInvadersGame.lastShot = now;
+        }
+    }
+    e.preventDefault();
+}
+
+function handleSpaceInvadersKeyUp(e) {
+    spaceInvadersGame.keys[e.key] = false;
+}
+
+function updateSpaceInvadersGame() {
+    if (!spaceInvadersGame.gameStarted || spaceInvadersGame.gameOver) return;
+    
+    // Move player
+    if (spaceInvadersGame.keys['ArrowLeft'] || spaceInvadersGame.keys['a'] || spaceInvadersGame.keys['A']) {
+        spaceInvadersGame.player.x = Math.max(0, spaceInvadersGame.player.x - spaceInvadersGame.player.speed);
+    }
+    if (spaceInvadersGame.keys['ArrowRight'] || spaceInvadersGame.keys['d'] || spaceInvadersGame.keys['D']) {
+        spaceInvadersGame.player.x = Math.min(spaceInvadersGame.canvas.width - spaceInvadersGame.player.width, spaceInvadersGame.player.x + spaceInvadersGame.player.speed);
+    }
+    
+    // Move bullets
+    spaceInvadersGame.bullets.forEach((bullet, index) => {
+        bullet.y += bullet.dy;
+        if (bullet.y < 0) {
+            spaceInvadersGame.bullets.splice(index, 1);
+        } else {
+            // Check collision with aliens
+            spaceInvadersGame.aliens.forEach(alien => {
+                if (!alien.destroyed &&
+                    bullet.x >= alien.x &&
+                    bullet.x <= alien.x + alien.width &&
+                    bullet.y >= alien.y &&
+                    bullet.y <= alien.y + alien.height) {
+                    alien.destroyed = true;
+                    spaceInvadersGame.bullets.splice(index, 1);
+                    spaceInvadersGame.score += 100;
+                    spaceInvadersGame.money += 15;
+                    const player = getMinigamePlayer();
+                    if (player) player.money += 15;
+                    updateMinigameDisplay();
+                    updateSpaceInvadersDisplay();
+                }
+            });
+        }
+    });
+    
+    // Move aliens
+    let shouldMoveDown = false;
+    spaceInvadersGame.aliens.forEach(alien => {
+        if (!alien.destroyed) {
+            if (alien.x + alien.width >= spaceInvadersGame.canvas.width || alien.x <= 0) {
+                shouldMoveDown = true;
+            }
+        }
+    });
+    
+    spaceInvadersGame.aliens.forEach(alien => {
+        if (!alien.destroyed) {
+            if (shouldMoveDown) {
+                alien.dy = 5;
+                alien.dx = -alien.dx;
+            }
+            alien.x += alien.dx;
+            alien.y += (alien.dy || 0);
+            alien.dy = 0;
+            
+            // Alien reached bottom
+            if (alien.y + alien.height >= spaceInvadersGame.canvas.height) {
+                spaceInvadersGame.gameOver = true;
+                endSpaceInvadersGame();
+            }
+            
+            // Random alien shooting
+            if (Math.random() < 0.005) {
+                spaceInvadersGame.alienBullets.push({
+                    x: alien.x + alien.width / 2,
+                    y: alien.y + alien.height,
+                    width: 4,
+                    height: 10,
+                    dy: 3
+                });
+            }
+        }
+    });
+    
+    // Move alien bullets
+    spaceInvadersGame.alienBullets.forEach((bullet, index) => {
+        bullet.y += bullet.dy;
+        if (bullet.y > spaceInvadersGame.canvas.height) {
+            spaceInvadersGame.alienBullets.splice(index, 1);
+        } else {
+            // Check collision with player
+            if (bullet.x >= spaceInvadersGame.player.x &&
+                bullet.x <= spaceInvadersGame.player.x + spaceInvadersGame.player.width &&
+                bullet.y >= spaceInvadersGame.player.y &&
+                bullet.y <= spaceInvadersGame.player.y + spaceInvadersGame.player.height) {
+                spaceInvadersGame.alienBullets.splice(index, 1);
+                spaceInvadersGame.lives--;
+                if (spaceInvadersGame.lives <= 0) {
+                    spaceInvadersGame.gameOver = true;
+                    endSpaceInvadersGame();
+                }
+            }
+        }
+    });
+    
+    // Win condition
+    if (spaceInvadersGame.aliens.every(a => a.destroyed)) {
+        spaceInvadersGame.gameOver = true;
+        const bonus = 200;
+        spaceInvadersGame.money += bonus;
+        const player = getMinigamePlayer();
+        if (player) player.money += bonus;
+        updateMinigameDisplay();
+        endSpaceInvadersGame();
+    }
+}
+
+function drawSpaceInvadersGame() {
+    if (!spaceInvadersGame.ctx) return;
+    const ctx = spaceInvadersGame.ctx;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, spaceInvadersGame.canvas.width, spaceInvadersGame.canvas.height);
+    
+    // Draw stars background
+    ctx.fillStyle = '#FFF';
+    for (let i = 0; i < 50; i++) {
+        ctx.fillRect(Math.random() * spaceInvadersGame.canvas.width, Math.random() * spaceInvadersGame.canvas.height, 2, 2);
+    }
+    
+    // Draw aliens
+    spaceInvadersGame.aliens.forEach(alien => {
+        if (!alien.destroyed) {
+            ctx.fillStyle = '#00FF00';
+            ctx.fillRect(alien.x, alien.y, alien.width, alien.height);
+            ctx.strokeStyle = '#FF0000';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(alien.x, alien.y, alien.width, alien.height);
+        }
+    });
+    
+    // Draw bullets
+    ctx.fillStyle = '#FFFF00';
+    spaceInvadersGame.bullets.forEach(bullet => {
+        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
+    });
+    
+    // Draw alien bullets
+    ctx.fillStyle = '#FF0000';
+    spaceInvadersGame.alienBullets.forEach(bullet => {
+        ctx.fillRect(bullet.x - bullet.width / 2, bullet.y, bullet.width, bullet.height);
+    });
+    
+    // Draw player
+    ctx.fillStyle = '#0000FF';
+    ctx.fillRect(spaceInvadersGame.player.x, spaceInvadersGame.player.y, spaceInvadersGame.player.width, spaceInvadersGame.player.height);
+    ctx.strokeStyle = '#00FFFF';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(spaceInvadersGame.player.x, spaceInvadersGame.player.y, spaceInvadersGame.player.width, spaceInvadersGame.player.height);
+    
+    if (spaceInvadersGame.gameOver) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, spaceInvadersGame.canvas.width, spaceInvadersGame.canvas.height);
+        ctx.fillStyle = '#FFD700';
+        ctx.font = 'bold 30px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game Over!', spaceInvadersGame.canvas.width / 2, spaceInvadersGame.canvas.height / 2);
+        ctx.fillText(`Money: ${spaceInvadersGame.money}`, spaceInvadersGame.canvas.width / 2, spaceInvadersGame.canvas.height / 2 + 40);
+    }
+}
+
+function updateSpaceInvadersDisplay() {
+    const scoreEl = document.getElementById('space-invaders-score');
+    const moneyEl = document.getElementById('space-invaders-money');
+    const livesEl = document.getElementById('space-invaders-lives');
+    if (scoreEl) scoreEl.textContent = spaceInvadersGame.score;
+    if (moneyEl) moneyEl.textContent = spaceInvadersGame.money;
+    if (livesEl) livesEl.textContent = spaceInvadersGame.lives;
+}
+
+function endSpaceInvadersGame() {
+    const resultDiv = document.getElementById('space-invaders-result');
+    if (resultDiv) {
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${spaceInvadersGame.money} money!</div>`;
+    }
+    if (typeof addLog === 'function') {
+        addLog(`👾 Space Invaders: Score ${spaceInvadersGame.score}, Earned ${spaceInvadersGame.money} money!`);
+    }
+}
+
+function spaceInvadersGameLoop() {
+    if (!spaceInvadersGame.gameStarted) return;
+    updateSpaceInvadersGame();
+    drawSpaceInvadersGame();
+    updateSpaceInvadersDisplay();
+    if (!spaceInvadersGame.gameOver) {
+        requestAnimationFrame(spaceInvadersGameLoop);
+    }
+}
+
 const MINIGAMES = [
     { name: 'Slot Machine', icon: '🎰', init: initSlotMachine },
     { name: 'Number Guessing', icon: '🎯', init: initNumberGuessing },
@@ -1106,7 +2524,13 @@ const MINIGAMES = [
     { name: 'Blackjack', icon: '🃏', init: initBlackjack },
     { name: 'Color Guessing', icon: '🎨', init: initColorGuessing },
     { name: 'Quick Math', icon: '🔢', init: initQuickMath },
-    { name: 'Maze Game', icon: '🧩', init: initMazeGame }
+    { name: 'Scary Cat Maze', icon: '🧩', init: initMazeGame },
+    { name: 'Snake', icon: '🐍', init: initSnakeGame },
+    { name: 'Breakout', icon: '🎾', init: initBreakoutGame },
+    { name: 'Tetris', icon: '🧩', init: initTetrisGame },
+    { name: 'Pong', icon: '🏓', init: initPongGame },
+    { name: 'Pac-Man', icon: '👻', init: initPacManGame },
+    { name: 'Space Invaders', icon: '👾', init: initSpaceInvadersGame }
 ];
 
 function showMinigamesMenu() {
@@ -1132,6 +2556,11 @@ function selectMinigame(index) {
     }
 }
 
+// Initialize minigames on load
+function initMinigames() {
+    showMinigamesMenu();
+}
+
 // Make all minigame functions globally available
 if (typeof window !== 'undefined') {
     window.spinSlotMachine = spinSlotMachine;
@@ -1145,7 +2574,15 @@ if (typeof window !== 'undefined') {
     window.playColorGuessing = playColorGuessing;
     window.playQuickMath = playQuickMath;
     window.startMazeGame = startMazeGame;
+    window.startSnakeGame = startSnakeGame;
+    window.startBreakoutGame = startBreakoutGame;
+    window.startTetrisGame = startTetrisGame;
+    window.startPongGame = startPongGame;
+    window.startPacManGame = startPacManGame;
+    window.startSpaceInvadersGame = startSpaceInvadersGame;
     window.showMinigamesMenu = showMinigamesMenu;
     window.selectMinigame = selectMinigame;
+    window.initMinigames = initMinigames;
+    window.showMazeSkinsShop = showMazeSkinsShop;
 }
 

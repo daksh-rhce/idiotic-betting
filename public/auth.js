@@ -312,8 +312,18 @@ function selectMode(mode) {
         initOnlineGame();
     } else if (mode === 'minigames') {
         showScreen('minigames-screen');
-        if (typeof showMinigamesMenu === 'function') {
-            showMinigamesMenu();
+        // Wait for screen to load, then show menu
+        setTimeout(() => {
+            if (typeof showMinigamesMenu === 'function') {
+                showMinigamesMenu();
+            } else if (typeof initMinigames === 'function') {
+                initMinigames();
+            }
+        }, 100);
+    } else if (mode === 'account') {
+        showScreen('account-screen');
+        if (typeof updateAccountDisplay === 'function') {
+            updateAccountDisplay();
         }
     }
 }
