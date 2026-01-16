@@ -1457,9 +1457,10 @@ function initSnakeGame() {
                 <canvas id="snake-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
             </div>
             <div id="snake-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
-                Score: <span id="snake-score">0</span> | Money: <span id="snake-money">0</span>
+                Score: <span id="snake-score">0</span> | Charge Earned: <span id="snake-money">0</span>
             </div>
             <button class="btn btn-large" onclick="startSnakeGame()">Start Game</button>
+            <button class="btn btn-small" onclick="showMinigamesMenu()" style="margin-top: 10px;">← Back to Minigames</button>
             <div id="snake-result"></div>
         </div>
     `;
