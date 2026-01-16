@@ -26,6 +26,10 @@ function updateMinigameChargeDisplay() {
     if (display) {
         display.textContent = minigamesState.minigameCharge;
     }
+    const menuDisplay = document.getElementById('menu-charge-display');
+    if (menuDisplay) {
+        menuDisplay.textContent = minigamesState.minigameCharge;
+    }
 }
 
 // Add charge (called from minigames)
