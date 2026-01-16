@@ -183,8 +183,24 @@
                             🎰
                         </button>
                     </div>
+                    <div class="account-container">
+                        <button id="account-btn" class="btn btn-small" onclick="toggleAccountTab()">👤 Account</button>
+                    </div>
                 </div>
             </header>
+            
+            <!-- Account Tab -->
+            <div id="account-tab" class="account-tab" style="display: none;">
+                <div class="account-tab-content">
+                    <h3>Account</h3>
+                    <button class="btn btn-large" onclick="logout()">Logout</button>
+                    <div style="margin-top: 20px;">
+                        <h4>Redeem Code</h4>
+                        <input type="text" id="redeem-code-input" placeholder="Enter redeem code">
+                        <button class="btn btn-large" onclick="redeemCode()">Redeem</button>
+                    </div>
+                </div>
+            </div>
 
             <div class="main-game-area">
                 <!-- Auction Area -->
@@ -317,6 +333,7 @@
     <script src="wheel.js"></script>
     <script src="flappy-money.js"></script>
     <script src="minigames.js"></script>
+    <script src="account.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

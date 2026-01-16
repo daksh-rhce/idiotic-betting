@@ -300,8 +300,13 @@ function selectMode(mode) {
     localStorage.setItem('gameMode', mode);
     if (mode === 'solo') {
         initSoloGame();
-    } else {
+    } else if (mode === 'online') {
         initOnlineGame();
+    } else if (mode === 'minigames') {
+        showScreen('minigames-screen');
+        if (typeof showMinigamesMenu === 'function') {
+            showMinigamesMenu();
+        }
     }
 }
 
