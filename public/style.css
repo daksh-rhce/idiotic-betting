@@ -1330,3 +1330,45 @@ header h1 {
     justify-content: center;
     margin: 20px 0;
 }
+
+/* Maze Game Styles */
+.minigame-maze canvas {
+    border: 3px solid #FF0000;
+    background: #000;
+    display: block;
+    margin: 0 auto;
+}
+
+.slot-display {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.slot-reel {
+    width: 100px;
+    height: 100px;
+    background: #000;
+    border: 3px solid #FF0000;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3em;
+    font-weight: bold;
+}
+
+.slot-controls {
+    margin: 10px 5px;
+}
+
+.slot-result, .number-result, .rps-result, .dice-result, .card-result, .coin-result, .color-result, .math-result {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #FF0000;
+    border-radius: 10px;
+    font-weight: bold;
+    text-align: center;
+}
