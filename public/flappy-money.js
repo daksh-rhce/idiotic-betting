@@ -344,12 +344,21 @@ function gameOverFlappy() {
     if (flappyGame.gameOver) return; // Prevent multiple calls
     flappyGame.gameOver = true;
     
-    // Points are already given per pipe, just show summary
-    if (typeof addLog === 'function') {
-        addLog(`🎮 Game Over! Total Flappy Points: ${flappyGame.flappyPoints}`);
-    }
-    if (typeof updateDisplay === 'function') {
-        updateDisplay();
+    // Give bonus money based on score
+    if (typeof gameState !== 'undefined' && gameState.players && gameState.players[gameState.playerId]) {
+        const player = gameState.players[gameState.playerId];
+        const bonusMoney = flappyGame.score * 10; // 10 money per point
+        player.money += bonusMoney;
+        if (typeof addLog === 'function') {
+            addLog(`🎮 Game Over! Score: ${flappyGame.score}. Bonus: +${bonusMoney} money! Total Flappy Points: ${flappyGame.flappyPoints}`);
+        }
+        if (typeof updateDisplay === 'function') {
+            updateDisplay();
+        }
+    } else {
+        if (typeof addLog === 'function') {
+            addLog(`🎮 Game Over! Total Flappy Points: ${flappyGame.flappyPoints}`);
+        }
     }
     updateFlappyPointsDisplay();
 }

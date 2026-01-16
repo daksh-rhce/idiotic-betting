@@ -619,6 +619,7 @@ function endAuction() {
         // Update display immediately so property shows in owned list
         updateDisplay();
         
+        // Auto-complete tasks when property is owned
         checkTaskCompletion(gameState.highestBidder);
     }
     
