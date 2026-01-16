@@ -752,7 +752,7 @@ function updateMazeGame() {
                 mazeGame.score++;
                 const player = getMinigamePlayer();
                 if (player) {
-                    player.money += 1;
+                    player.money += 10; // 1 bag = 10 money
                 }
                 updateMazeDisplay();
                 updateMinigameDisplay();

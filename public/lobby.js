@@ -17,17 +17,40 @@ function saveLeaderboard() {
     localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
 }
 
-// Update leaderboard when player wins
-function updateLeaderboard(playerName) {
-    loadLeaderboard();
-    const entry = leaderboard.find(e => e.username === playerName);
-    if (entry) {
-        entry.wins++;
-    } else {
-        leaderboard.push({ username: playerName, wins: 1 });
+// Update leaderboard when player wins (server-side)
+async function updateLeaderboard(playerName) {
+    try {
+        const response = await fetch('/api/leaderboard/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: playerName })
+        });
+        
+        if (response.ok) {
+            // Also update local storage as backup
+            loadLeaderboard();
+            const entry = leaderboard.find(e => e.username === playerName);
+            if (entry) {
+                entry.wins++;
+            } else {
+                leaderboard.push({ username: playerName, wins: 1 });
+            }
+            leaderboard.sort((a, b) => b.wins - a.wins);
+            saveLeaderboard();
+        }
+    } catch (error) {
+        console.error('Error updating leaderboard:', error);
+        // Fallback to localStorage
+        loadLeaderboard();
+        const entry = leaderboard.find(e => e.username === playerName);
+        if (entry) {
+            entry.wins++;
+        } else {
+            leaderboard.push({ username: playerName, wins: 1 });
+        }
+        leaderboard.sort((a, b) => b.wins - a.wins);
+        saveLeaderboard();
     }
-    leaderboard.sort((a, b) => b.wins - a.wins);
-    saveLeaderboard();
 }
 
 // Load friends from localStorage
@@ -117,7 +140,7 @@ function loadLobbyScreen() {
     showCreateLobby();
 }
 
-function createLobby() {
+async function createLobby() {
     const lobbyName = document.getElementById('lobby-name-input').value.trim();
     const password = document.getElementById('lobby-password-input').value;
     const errorDiv = document.getElementById('create-lobby-error');
@@ -127,46 +150,108 @@ function createLobby() {
         return;
     }
     
-    // Check if lobby already exists
-    const existing = localStorage.getItem(`lobby_${lobbyName}`);
-    if (existing) {
-        errorDiv.textContent = 'Lobby name already taken!';
+    if (!currentUser || !currentUser.username) {
+        errorDiv.textContent = 'You must be logged in to create a lobby';
         return;
     }
     
-    // Create lobby
-    currentLobby = {
-        name: lobbyName,
-        password: password,
-        leader: currentUser.username,
-        players: [{
-            id: currentUser.username,
-            name: playerName || currentUser.username,
-            isLeader: true
-        }],
-        maxPlayers: 4,
-        createdAt: Date.now()
-    };
-    
-    // Store in localStorage with key for easy lookup
-    localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
-    localStorage.setItem(`lobby_${lobbyName}`, JSON.stringify(currentLobby));
-    
-    displayCurrentLobby();
-    addLog(`Created lobby: ${lobbyName}`);
-    
-    // Refresh available lobbies for others
-    if (typeof loadAvailableLobbies === 'function') {
-        setTimeout(loadAvailableLobbies, 500);
+    try {
+        const response = await fetch('/api/lobbies/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: lobbyName, password: password || null, host: currentUser.username })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            currentLobby = {
+                name: lobbyName,
+                password: password,
+                leader: currentUser.username,
+                players: [{
+                    id: currentUser.username,
+                    name: playerName || currentUser.username,
+                    isLeader: true
+                }],
+                maxPlayers: 6,
+                createdAt: Date.now()
+            };
+            
+            localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
+            displayCurrentLobby();
+            errorDiv.textContent = '';
+            addLog(`Created lobby: ${lobbyName}`);
+            
+            setTimeout(loadAvailableLobbies, 500);
+        } else {
+            errorDiv.textContent = data.error || 'Failed to create lobby';
+        }
+    } catch (error) {
+        console.error('Error creating lobby:', error);
+        errorDiv.textContent = 'Error creating lobby. Using local storage fallback.';
+        // Fallback to localStorage
+        const existing = localStorage.getItem(`lobby_${lobbyName}`);
+        if (existing) {
+            errorDiv.textContent = 'Lobby name already taken!';
+            return;
+        }
+        
+        currentLobby = {
+            name: lobbyName,
+            password: password,
+            leader: currentUser.username,
+            players: [{
+                id: currentUser.username,
+                name: playerName || currentUser.username,
+                isLeader: true
+            }],
+            maxPlayers: 6,
+            createdAt: Date.now()
+        };
+        
+        localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
+        localStorage.setItem(`lobby_${lobbyName}`, JSON.stringify(currentLobby));
+        displayCurrentLobby();
     }
 }
 
-function loadAvailableLobbies() {
-    // Load all lobbies from localStorage (shared across tabs)
+async function loadAvailableLobbies() {
     const lobbiesDiv = document.getElementById('available-lobbies');
-    lobbiesDiv.innerHTML = '';
+    lobbiesDiv.innerHTML = '<p style="color: #FFD700;">Loading lobbies...</p>';
     
-    // Get all lobby keys from localStorage
+    try {
+        const response = await fetch('/api/lobbies');
+        const data = await response.json();
+        
+        if (data.lobbies.length === 0) {
+            lobbiesDiv.innerHTML = '<p style="color: #FFD700;">No available lobbies. Create one or ask a friend to create one!</p>';
+        } else {
+            lobbiesDiv.innerHTML = '';
+            data.lobbies.forEach(lobby => {
+                const lobbyDiv = document.createElement('div');
+                lobbyDiv.className = 'lobby-item';
+                lobbyDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: rgba(0,0,0,0.5); border: 2px solid #FFD700; border-radius: 10px;';
+                lobbyDiv.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 10px;">${lobby.name}</div>
+                    <div>Players: ${lobby.playerCount}/6</div>
+                    <div>Host: ${lobby.host}</div>
+                    ${lobby.hasPassword ? '<div style="color: #FFD700;">🔒 Password Protected</div>' : ''}
+                    <button class="btn btn-small" onclick="joinLobbyByName('${lobby.name}')" style="margin-top: 10px;">Join</button>
+                `;
+                lobbiesDiv.appendChild(lobbyDiv);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading lobbies:', error);
+        lobbiesDiv.innerHTML = '<p style="color: #ff6b6b;">Error loading lobbies. Using local storage fallback.</p>';
+        // Fallback to localStorage
+        loadAvailableLobbiesLocal();
+    }
+}
+
+function loadAvailableLobbiesLocal() {
+    const lobbiesDiv = document.getElementById('available-lobbies');
     const allLobbies = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -174,29 +259,26 @@ function loadAvailableLobbies() {
             try {
                 const lobby = JSON.parse(localStorage.getItem(key));
                 if (lobby && lobby.name && lobby.players) {
-                    // Only show lobbies that aren't full and aren't the current user's
-                    if (lobby.players.length < lobby.maxPlayers && 
+                    if (lobby.players.length < 6 && 
                         !lobby.players.some(p => p.id === currentUser?.username)) {
                         allLobbies.push(lobby);
                     }
                 }
-            } catch (e) {
-                // Skip invalid entries
-            }
+            } catch (e) {}
         }
     }
     
     if (allLobbies.length === 0) {
-        lobbiesDiv.innerHTML = '<p style="color: #FFD700;">No available lobbies. Create one or ask a friend to create one!</p>';
+        lobbiesDiv.innerHTML = '<p style="color: #FFD700;">No available lobbies.</p>';
     } else {
+        lobbiesDiv.innerHTML = '';
         allLobbies.forEach(lobby => {
             const lobbyDiv = document.createElement('div');
             lobbyDiv.className = 'lobby-item';
             lobbyDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: rgba(0,0,0,0.5); border: 2px solid #FFD700; border-radius: 10px;';
             lobbyDiv.innerHTML = `
                 <div style="font-weight: bold; margin-bottom: 10px;">${lobby.name}</div>
-                <div>Players: ${lobby.players.length}/${lobby.maxPlayers}</div>
-                <div>Leader: ${lobby.leader}</div>
+                <div>Players: ${lobby.players.length}/6</div>
                 <button class="btn btn-small" onclick="joinLobbyByName('${lobby.name}')" style="margin-top: 10px;">Join</button>
             `;
             lobbiesDiv.appendChild(lobbyDiv);
@@ -209,7 +291,7 @@ function joinLobbyByName(lobbyName) {
     joinLobby();
 }
 
-function joinLobby() {
+async function joinLobby() {
     const lobbyName = document.getElementById('join-lobby-name').value.trim();
     const password = document.getElementById('join-lobby-password').value;
     const errorDiv = document.getElementById('join-lobby-error');
@@ -219,32 +301,68 @@ function joinLobby() {
         return;
     }
     
-    // In production, check server for lobby
-    // For now, simulate join
-    const storedLobby = localStorage.getItem(`lobby_${lobbyName}`);
-    if (storedLobby) {
-        const lobby = JSON.parse(storedLobby);
-        if (lobby.password && lobby.password !== password) {
-            errorDiv.textContent = 'Incorrect password';
-            return;
-        }
-        if (lobby.players.length >= lobby.maxPlayers) {
-            errorDiv.textContent = 'Lobby is full';
-            return;
-        }
-        
-        lobby.players.push({
-            id: currentUser.username,
-            name: playerName || currentUser.username,
-            isLeader: false
+    if (!currentUser || !currentUser.username) {
+        errorDiv.textContent = 'You must be logged in to join a lobby';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/lobbies/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: lobbyName, password: password || null, username: currentUser.username })
         });
         
-        currentLobby = lobby;
-        localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
-        displayCurrentLobby();
-        addLog(`Joined lobby: ${lobbyName}`);
-    } else {
-        errorDiv.textContent = 'Lobby not found';
+        const data = await response.json();
+        
+        if (response.ok) {
+            currentLobby = {
+                name: lobbyName,
+                password: password,
+                leader: data.lobby.host,
+                players: data.lobby.players.map((p, idx) => ({
+                    id: p.username,
+                    name: p.username,
+                    isLeader: p.username === data.lobby.host
+                })),
+                maxPlayers: 6
+            };
+            
+            localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
+            displayCurrentLobby();
+            errorDiv.textContent = '';
+            addLog(`Joined lobby: ${lobbyName}`);
+        } else {
+            errorDiv.textContent = data.error || 'Failed to join lobby';
+        }
+    } catch (error) {
+        console.error('Error joining lobby:', error);
+        errorDiv.textContent = 'Error joining lobby. Using local storage fallback.';
+        // Fallback to localStorage
+        const storedLobby = localStorage.getItem(`lobby_${lobbyName}`);
+        if (storedLobby) {
+            const lobby = JSON.parse(storedLobby);
+            if (lobby.password && lobby.password !== password) {
+                errorDiv.textContent = 'Incorrect password';
+                return;
+            }
+            if (lobby.players.length >= 6) {
+                errorDiv.textContent = 'Lobby is full';
+                return;
+            }
+            
+            lobby.players.push({
+                id: currentUser.username,
+                name: playerName || currentUser.username,
+                isLeader: false
+            });
+            
+            currentLobby = lobby;
+            localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
+            displayCurrentLobby();
+        } else {
+            errorDiv.textContent = 'Lobby not found';
+        }
     }
 }
 
