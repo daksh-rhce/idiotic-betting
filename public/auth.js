@@ -14,10 +14,18 @@ function checkAuth() {
 }
 
 function showScreen(screenId) {
+    if (!screenId) return;
+    
     document.querySelectorAll('.screen').forEach(screen => {
-        screen.classList.remove('active');
+        if (screen) screen.classList.remove('active');
     });
-    document.getElementById(screenId).classList.add('active');
+    
+    const targetScreen = document.getElementById(screenId);
+    if (targetScreen) {
+        targetScreen.classList.add('active');
+    } else {
+        console.error(`Screen not found: ${screenId}`);
+    }
 }
 
 function showLogin() {

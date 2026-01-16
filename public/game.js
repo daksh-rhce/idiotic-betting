@@ -1858,6 +1858,24 @@ window.selectChaosCard = selectChaosCard;
 window.submitBid = submitBid;
 window.showScreen = showScreen;
 window.sellPropertyAt = sellPropertyAt;
+
+function skipTurn() {
+    if (gameState.currentPhase !== 'action') {
+        addLog("You can only skip during the Action Phase!");
+        return;
+    }
+    
+    const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+    if (currentPlayer.id !== gameState.playerId) {
+        addLog("It's not your turn to skip!");
+        return;
+    }
+    
+    addLog("You skipped your turn.");
+    advanceTurn();
+}
+
+window.skipTurn = skipTurn;
 window.confirmTaskSelection = confirmTaskSelection;
 window.toggleTaskSelection = toggleTaskSelection;
 window.setPlayerName = setPlayerName;
