@@ -608,6 +608,284 @@ function playQuickMath() {
     updateMinigameDisplay();
 }
 
+// Maze Game Skins System
+const MAZE_SKINS = {
+    default: {
+        name: 'Default Red',
+        cost: 0,
+        owned: true,
+        playerColor: '#FF0000',
+        playerSymbol: '●'
+    },
+    blue: {
+        name: 'Blue Skin',
+        cost: 150,
+        owned: false,
+        playerColor: '#0066FF',
+        playerSymbol: '●'
+    },
+    green: {
+        name: 'Green Skin',
+        cost: 180,
+        owned: false,
+        playerColor: '#00FF00',
+        playerSymbol: '●'
+    },
+    purple: {
+        name: 'Purple Skin',
+        cost: 200,
+        owned: false,
+        playerColor: '#9900FF',
+        playerSymbol: '●'
+    },
+    gold: {
+        name: 'Gold Skin',
+        cost: 250,
+        owned: false,
+        playerColor: '#FFD700',
+        playerSymbol: '●'
+    },
+    rainbow: {
+        name: 'Rainbow Skin',
+        cost: 300,
+        owned: false,
+        playerColor: '#FF0000',
+        playerSymbol: '🌈',
+        rainbow: true
+    },
+    ghost: {
+        name: 'Ghost Skin',
+        cost: 220,
+        owned: false,
+        playerColor: '#FFFFFF',
+        playerSymbol: '👻'
+    },
+    robot: {
+        name: 'Robot Skin',
+        cost: 230,
+        owned: false,
+        playerColor: '#C0C0C0',
+        playerSymbol: '🤖'
+    },
+    cat: {
+        name: 'Cat Skin',
+        cost: 240,
+        owned: false,
+        playerColor: '#FFA500',
+        playerSymbol: '🐱'
+    },
+    ninja: {
+        name: 'Ninja Skin',
+        cost: 270,
+        owned: false,
+        playerColor: '#000000',
+        playerSymbol: '🥷'
+    }
+};
+
+let mazeGameSkin = 'default';
+
+function loadMazeSkin() {
+    const saved = localStorage.getItem('mazeGameSkin');
+    if (saved && MAZE_SKINS[saved]) {
+        mazeGameSkin = saved;
+    }
+    // Load owned skins
+    const savedOwned = localStorage.getItem('mazeSkins');
+    if (savedOwned) {
+        try {
+            const owned = JSON.parse(savedOwned);
+            Object.keys(owned).forEach(key => {
+                if (MAZE_SKINS[key]) {
+                    MAZE_SKINS[key].owned = true;
+                }
+            });
+        } catch (e) {
+            console.error('Error loading maze skins:', e);
+        }
+    }
+}
+
+function saveMazeSkin() {
+    localStorage.setItem('mazeGameSkin', mazeGameSkin);
+    const owned = {};
+    Object.keys(MAZE_SKINS).forEach(key => {
+        if (MAZE_SKINS[key].owned) {
+            owned[key] = true;
+        }
+    });
+    localStorage.setItem('mazeSkins', JSON.stringify(owned));
+}
+
+function showMazeSkinsShop() {
+    loadMazeSkin();
+    if (typeof loadFlappyPoints === 'function') {
+        loadFlappyPoints();
+    }
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'maze-skins-shop';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 20000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow-y: auto;
+    `;
+    
+    const shopContent = document.createElement('div');
+    shopContent.style.cssText = `
+        background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+        border: 5px solid #FFD700;
+        border-radius: 20px;
+        padding: 30px;
+        max-width: 800px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+    `;
+    
+    const flappyPoints = (typeof flappyGame !== 'undefined' && flappyGame.flappyPoints) ? flappyGame.flappyPoints : 0;
+    shopContent.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color: #FFD700; font-size: 2em; font-weight: bold;">🎨 Maze Game Skins Shop</h2>
+            <button onclick="this.closest('#maze-skins-shop').remove()" style="
+                background: #ff0000;
+                color: #fff;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                font-size: 1.5em;
+                cursor: pointer;
+                font-weight: bold;
+            ">✕</button>
+        </div>
+        <div style="color: #FFD700; font-size: 1.2em; margin-bottom: 20px; font-weight: bold;">
+            🎮 Flappy Points: ${flappyPoints}
+        </div>
+        <div id="maze-skin-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        </div>
+    `;
+    
+    const skinList = shopContent.querySelector('#maze-skin-list');
+    
+    Object.keys(MAZE_SKINS).forEach(skinKey => {
+        const skin = MAZE_SKINS[skinKey];
+        const skinCard = document.createElement('div');
+        skinCard.style.cssText = `
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            border: 3px solid ${skin.owned ? '#00FF00' : '#FFD700'};
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: ${skin.owned ? 'pointer' : 'default'};
+            opacity: ${skin.owned ? '1' : '0.7'};
+        `;
+        
+        const canBuy = flappyPoints >= skin.cost;
+        
+        skinCard.innerHTML = `
+            <div style="font-size: 4em; margin-bottom: 10px; color: ${skin.playerColor};">${skin.playerSymbol}</div>
+            <h3 style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">${skin.name}</h3>
+            ${skin.owned ? 
+                `<div style="color: #00FF00; font-weight: bold; margin-bottom: 10px;">✓ OWNED</div>
+                 <button onclick="selectMazeSkin('${skinKey}')" style="
+                     background: #00FF00;
+                     color: #000;
+                     border: none;
+                     padding: 10px 20px;
+                     border-radius: 10px;
+                     font-weight: bold;
+                     cursor: pointer;
+                     ${mazeGameSkin === skinKey ? 'opacity: 0.5; cursor: not-allowed;' : ''}
+                 ">${mazeGameSkin === skinKey ? 'CURRENT' : 'SELECT'}</button>` :
+                `<div style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">
+                    Cost: 🎮 ${skin.cost} Flappy Points
+                </div>
+                 <button onclick="buyMazeSkin('${skinKey}')" style="
+                     background: ${canBuy ? '#FFD700' : '#666'};
+                     color: #000;
+                     border: none;
+                     padding: 10px 20px;
+                     border-radius: 10px;
+                     font-weight: bold;
+                     cursor: ${canBuy ? 'pointer' : 'not-allowed'};
+                     opacity: ${canBuy ? '1' : '0.5'};
+                 ">${canBuy ? 'BUY' : 'NEED ' + skin.cost + ' POINTS'}</button>
+                `
+            }
+        `;
+        
+        skinList.appendChild(skinCard);
+    });
+    
+    overlay.appendChild(shopContent);
+    document.body.appendChild(overlay);
+}
+
+function buyMazeSkin(skinKey) {
+    const skin = MAZE_SKINS[skinKey];
+    if (!skin || skin.owned) return;
+    
+    if (typeof loadFlappyPoints === 'function') {
+        loadFlappyPoints();
+    }
+    const flappyPoints = (typeof flappyGame !== 'undefined' && flappyGame.flappyPoints) ? flappyGame.flappyPoints : 0;
+    
+    if (flappyPoints < skin.cost) {
+        alert(`You need ${skin.cost} flappy points to buy this skin!`);
+        return;
+    }
+    
+    if (typeof flappyGame !== 'undefined') {
+        flappyGame.flappyPoints -= skin.cost;
+        if (typeof saveFlappyPoints === 'function') {
+            saveFlappyPoints();
+        }
+    }
+    skin.owned = true;
+    saveMazeSkin();
+    
+    if (typeof addLog === 'function') {
+        addLog(`🎨 Purchased ${skin.name} for ${skin.cost} flappy points!`);
+    }
+    
+    // Refresh shop
+    const shop = document.getElementById('maze-skins-shop');
+    if (shop) shop.remove();
+    showMazeSkinsShop();
+}
+
+function selectMazeSkin(skinKey) {
+    if (!MAZE_SKINS[skinKey] || !MAZE_SKINS[skinKey].owned) return;
+    if (mazeGameSkin === skinKey) return;
+    
+    mazeGameSkin = skinKey;
+    saveMazeSkin();
+    
+    // Update current game if active
+    if (mazeGame.gameStarted && mazeGame.player) {
+        const skin = MAZE_SKINS[skinKey];
+        mazeGame.player.color = skin.playerColor;
+        mazeGame.player.symbol = skin.playerSymbol;
+    }
+    
+    if (typeof addLog === 'function') {
+        addLog(`🎨 Switched to ${MAZE_SKINS[skinKey].name}!`);
+    }
+    
+    // Close shop
+    const shop = document.getElementById('maze-skins-shop');
+    if (shop) shop.remove();
+}
+
 // Minigame 11: Maze Game
 function initMazeGame() {
     const container = document.getElementById('minigame-container');
@@ -2547,6 +2825,17 @@ const MINIGAMES = [
 
 function showMinigamesMenu() {
     const container = document.getElementById('minigame-container');
+    if (!container) {
+        console.error('minigame-container not found');
+        // Wait a bit and try again
+        setTimeout(() => {
+            const retryContainer = document.getElementById('minigame-container');
+            if (retryContainer) {
+                showMinigamesMenu();
+            }
+        }, 100);
+        return;
+    }
     container.innerHTML = `
         <div class="minigames-menu">
             <h2>🎮 Minigames</h2>

@@ -314,12 +314,15 @@ function selectMode(mode) {
         showScreen('minigames-screen');
         // Wait for screen to load, then show menu
         setTimeout(() => {
-            if (typeof showMinigamesMenu === 'function') {
-                showMinigamesMenu();
-            } else if (typeof initMinigames === 'function') {
-                initMinigames();
+            const screen = document.getElementById('minigames-screen');
+            if (screen && screen.classList.contains('active')) {
+                if (typeof showMinigamesMenu === 'function') {
+                    showMinigamesMenu();
+                } else if (typeof initMinigames === 'function') {
+                    initMinigames();
+                }
             }
-        }, 100);
+        }, 200);
     } else if (mode === 'account') {
         showScreen('account-screen');
         if (typeof updateAccountDisplay === 'function') {
