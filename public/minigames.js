@@ -613,8 +613,9 @@ function initMazeGame() {
     const container = document.getElementById('minigame-container');
     container.innerHTML = `
         <div class="minigame-maze">
-            <h2>🧩 Maze Game</h2>
-            <p>Use arrow keys to collect money bags! Each bag = 1 money</p>
+            <h2>🧩 Scary Cat Maze Game - Level <span id="maze-level-display">1</span></h2>
+            <p>Use WASD or arrow keys to collect money bags! Each bag = 10 money</p>
+            <button class="btn btn-small" onclick="showMazeSkinsShop()" style="margin: 10px 0;">🎨 Skins Shop</button>
             <div id="maze-canvas-container" style="text-align: center; margin: 20px 0;">
                 <canvas id="maze-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
             </div>
