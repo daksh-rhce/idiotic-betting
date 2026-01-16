@@ -881,3 +881,20 @@ function selectMinigame(index) {
     }
 }
 
+// Make all minigame functions globally available
+if (typeof window !== 'undefined') {
+    window.spinSlotMachine = spinSlotMachine;
+    window.playNumberGuessing = playNumberGuessing;
+    window.playRPS = playRPS;
+    window.playDiceRoll = playDiceRoll;
+    window.playCardFlip = playCardFlip;
+    window.playCoinFlip = playCoinFlip;
+    window.flipMemoryCard = flipMemoryCard;
+    window.startBlackjack = startBlackjack;
+    window.playColorGuessing = playColorGuessing;
+    window.playQuickMath = playQuickMath;
+    window.startMazeGame = startMazeGame;
+    window.showMinigamesMenu = showMinigamesMenu;
+    window.selectMinigame = selectMinigame;
+}
+

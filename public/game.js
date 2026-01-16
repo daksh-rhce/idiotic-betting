@@ -1348,21 +1348,30 @@ function processIncomePhase() {
 
 function checkTaskCompletion(playerId) {
     const player = gameState.players.find(p => p.id === playerId);
-    const completed = [];
+    if (!player) return;
     
-    player.tasks.forEach((task, index) => {
+    let anyCompleted = false;
+    // Check all tasks - iterate backwards to safely remove items
+    for (let i = player.tasks.length - 1; i >= 0; i--) {
+        const task = player.tasks[i];
         const ownsProperty = player.properties.some(prop => prop.name === task.propertyName && !prop.frozen);
         if (ownsProperty && !player.completedTasks.some(ct => ct.id === task.id)) {
             player.completedTasks.push(task);
-            completed.push(task);
-            addLog(`✅ ${player.name} completed: ${task.description}!`);
+            anyCompleted = true;
+            addLog(`✅ ${player.name} completed task: ${task.description}!`);
             
-            player.tasks.splice(index, 1);
+            // Remove task from tasks list
+            player.tasks.splice(i, 1);
+            // Add new task if available
             if (gameState.taskDeck.length > 0) {
                 player.tasks.push(gameState.taskDeck.pop());
             }
         }
-    });
+    }
+    
+    if (anyCompleted) {
+        updateDisplay();
+    }
     
     if (player.completedTasks.length >= 4) {
         endGame();
