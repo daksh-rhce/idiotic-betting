@@ -17,40 +17,17 @@ function saveLeaderboard() {
     localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
 }
 
-// Update leaderboard when player wins (server-side)
-async function updateLeaderboard(playerName) {
-    try {
-        const response = await fetch('/api/leaderboard/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: playerName })
-        });
-        
-        if (response.ok) {
-            // Also update local storage as backup
-            loadLeaderboard();
-            const entry = leaderboard.find(e => e.username === playerName);
-            if (entry) {
-                entry.wins++;
-            } else {
-                leaderboard.push({ username: playerName, wins: 1 });
-            }
-            leaderboard.sort((a, b) => b.wins - a.wins);
-            saveLeaderboard();
-        }
-    } catch (error) {
-        console.error('Error updating leaderboard:', error);
-        // Fallback to localStorage
-        loadLeaderboard();
-        const entry = leaderboard.find(e => e.username === playerName);
-        if (entry) {
-            entry.wins++;
-        } else {
-            leaderboard.push({ username: playerName, wins: 1 });
-        }
-        leaderboard.sort((a, b) => b.wins - a.wins);
-        saveLeaderboard();
+// Update leaderboard when player wins
+function updateLeaderboard(playerName) {
+    loadLeaderboard();
+    const entry = leaderboard.find(e => e.username === playerName);
+    if (entry) {
+        entry.wins++;
+    } else {
+        leaderboard.push({ username: playerName, wins: 1 });
     }
+    leaderboard.sort((a, b) => b.wins - a.wins);
+    saveLeaderboard();
 }
 
 // Load friends from localStorage
@@ -166,21 +143,21 @@ async function createLobby() {
         
         if (response.ok) {
             currentLobby = {
+                id: data.lobbyId,
                 name: lobbyName,
-                password: password,
+                password: password || null,
                 leader: currentUser.username,
                 players: [{
                     id: currentUser.username,
                     name: playerName || currentUser.username,
                     isLeader: true
                 }],
-                maxPlayers: 6,
+                maxPlayers: 4,
                 createdAt: Date.now()
             };
             
             localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
             displayCurrentLobby();
-            errorDiv.textContent = '';
             addLog(`Created lobby: ${lobbyName}`);
             
             setTimeout(loadAvailableLobbies, 500);
@@ -189,14 +166,13 @@ async function createLobby() {
         }
     } catch (error) {
         console.error('Error creating lobby:', error);
-        errorDiv.textContent = 'Error creating lobby. Using local storage fallback.';
+        errorDiv.textContent = 'Error creating lobby. Using fallback...';
         // Fallback to localStorage
         const existing = localStorage.getItem(`lobby_${lobbyName}`);
         if (existing) {
             errorDiv.textContent = 'Lobby name already taken!';
             return;
         }
-        
         currentLobby = {
             name: lobbyName,
             password: password,
@@ -206,10 +182,9 @@ async function createLobby() {
                 name: playerName || currentUser.username,
                 isLeader: true
             }],
-            maxPlayers: 6,
+            maxPlayers: 4,
             createdAt: Date.now()
         };
-        
         localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
         localStorage.setItem(`lobby_${lobbyName}`, JSON.stringify(currentLobby));
         displayCurrentLobby();
@@ -234,24 +209,23 @@ async function loadAvailableLobbies() {
                 lobbyDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: rgba(0,0,0,0.5); border: 2px solid #FFD700; border-radius: 10px;';
                 lobbyDiv.innerHTML = `
                     <div style="font-weight: bold; margin-bottom: 10px;">${lobby.name}</div>
-                    <div>Players: ${lobby.playerCount}/6</div>
-                    <div>Host: ${lobby.host}</div>
-                    ${lobby.hasPassword ? '<div style="color: #FFD700;">🔒 Password Protected</div>' : ''}
-                    <button class="btn btn-small" onclick="joinLobbyByName('${lobby.name}')" style="margin-top: 10px;">Join</button>
+                    <div>Players: ${lobby.playerCount}/${lobby.maxPlayers}</div>
+                    <button class="btn btn-small" onclick="joinLobbyById('${lobby.id}')" style="margin-top: 10px;">Join</button>
                 `;
                 lobbiesDiv.appendChild(lobbyDiv);
             });
         }
     } catch (error) {
         console.error('Error loading lobbies:', error);
-        lobbiesDiv.innerHTML = '<p style="color: #ff6b6b;">Error loading lobbies. Using local storage fallback.</p>';
+        lobbiesDiv.innerHTML = '<p style="color: #ff0000;">Error loading lobbies. Using fallback...</p>';
         // Fallback to localStorage
-        loadAvailableLobbiesLocal();
+        loadAvailableLobbiesFallback();
     }
 }
 
-function loadAvailableLobbiesLocal() {
+function loadAvailableLobbiesFallback() {
     const lobbiesDiv = document.getElementById('available-lobbies');
+    lobbiesDiv.innerHTML = '';
     const allLobbies = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -259,7 +233,7 @@ function loadAvailableLobbiesLocal() {
             try {
                 const lobby = JSON.parse(localStorage.getItem(key));
                 if (lobby && lobby.name && lobby.players) {
-                    if (lobby.players.length < 6 && 
+                    if (lobby.players.length < lobby.maxPlayers && 
                         !lobby.players.some(p => p.id === currentUser?.username)) {
                         allLobbies.push(lobby);
                     }
@@ -267,18 +241,16 @@ function loadAvailableLobbiesLocal() {
             } catch (e) {}
         }
     }
-    
     if (allLobbies.length === 0) {
         lobbiesDiv.innerHTML = '<p style="color: #FFD700;">No available lobbies.</p>';
     } else {
-        lobbiesDiv.innerHTML = '';
         allLobbies.forEach(lobby => {
             const lobbyDiv = document.createElement('div');
             lobbyDiv.className = 'lobby-item';
             lobbyDiv.style.cssText = 'padding: 15px; margin: 10px 0; background: rgba(0,0,0,0.5); border: 2px solid #FFD700; border-radius: 10px;';
             lobbyDiv.innerHTML = `
                 <div style="font-weight: bold; margin-bottom: 10px;">${lobby.name}</div>
-                <div>Players: ${lobby.players.length}/6</div>
+                <div>Players: ${lobby.players.length}/${lobby.maxPlayers}</div>
                 <button class="btn btn-small" onclick="joinLobbyByName('${lobby.name}')" style="margin-top: 10px;">Join</button>
             `;
             lobbiesDiv.appendChild(lobbyDiv);
@@ -306,38 +278,34 @@ async function joinLobby() {
         return;
     }
     
+    // Try to find lobby ID first
     try {
-        const response = await fetch('/api/lobbies/join', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: lobbyName, password: password || null, username: currentUser.username })
-        });
-        
+        const response = await fetch('/api/lobbies');
         const data = await response.json();
+        const lobby = data.lobbies.find(l => l.name === lobbyName);
         
-        if (response.ok) {
-            currentLobby = {
-                name: lobbyName,
-                password: password,
-                leader: data.lobby.host,
-                players: data.lobby.players.map((p, idx) => ({
-                    id: p.username,
-                    name: p.username,
-                    isLeader: p.username === data.lobby.host
-                })),
-                maxPlayers: 6
-            };
+        if (lobby) {
+            const joinResponse = await fetch('/api/lobbies/join', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lobbyId: lobby.id, password: password || null, username: currentUser.username })
+            });
             
-            localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
-            displayCurrentLobby();
-            errorDiv.textContent = '';
-            addLog(`Joined lobby: ${lobbyName}`);
+            const joinData = await joinResponse.json();
+            
+            if (joinResponse.ok) {
+                currentLobby = joinData.lobby;
+                localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
+                displayCurrentLobby();
+                addLog(`Joined lobby: ${lobbyName}`);
+            } else {
+                errorDiv.textContent = joinData.error || 'Failed to join lobby';
+            }
         } else {
-            errorDiv.textContent = data.error || 'Failed to join lobby';
+            errorDiv.textContent = 'Lobby not found';
         }
     } catch (error) {
         console.error('Error joining lobby:', error);
-        errorDiv.textContent = 'Error joining lobby. Using local storage fallback.';
         // Fallback to localStorage
         const storedLobby = localStorage.getItem(`lobby_${lobbyName}`);
         if (storedLobby) {
@@ -346,17 +314,15 @@ async function joinLobby() {
                 errorDiv.textContent = 'Incorrect password';
                 return;
             }
-            if (lobby.players.length >= 6) {
+            if (lobby.players.length >= lobby.maxPlayers) {
                 errorDiv.textContent = 'Lobby is full';
                 return;
             }
-            
             lobby.players.push({
                 id: currentUser.username,
                 name: playerName || currentUser.username,
                 isLeader: false
             });
-            
             currentLobby = lobby;
             localStorage.setItem('currentLobby', JSON.stringify(currentLobby));
             displayCurrentLobby();
@@ -364,6 +330,13 @@ async function joinLobby() {
             errorDiv.textContent = 'Lobby not found';
         }
     }
+}
+
+function joinLobbyById(lobbyId) {
+    document.getElementById('join-lobby-name').value = '';
+    // Store lobby ID temporarily
+    window.tempLobbyId = lobbyId;
+    joinLobby();
 }
 
 function displayCurrentLobby() {
@@ -433,41 +406,83 @@ function leaveLobby() {
 }
 
 // Friends system
-function loadFriendsList() {
+async function loadFriendsList() {
     loadFriends();
     const friendsDiv = document.getElementById('friends-list');
-    friendsDiv.innerHTML = '';
+    friendsDiv.innerHTML = '<p style="color: #FFD700;">Loading...</p>';
     
-    if (friendsList.length === 0) {
-        friendsDiv.innerHTML = '<p style="color: #FFD700;">No friends yet. Send a friend request!</p>';
-    } else {
-        friendsList.forEach(friend => {
-            const friendDiv = document.createElement('div');
-            friendDiv.className = 'friend-item';
-            friendDiv.innerHTML = `
-                <span>${friend}</span>
-                <button class="btn btn-small" onclick="joinFriendLobby('${friend}')">Join Game</button>
-            `;
-            friendsDiv.appendChild(friendDiv);
-        });
+    if (!currentUser || !currentUser.username) {
+        friendsDiv.innerHTML = '<p style="color: #ff0000;">You must be logged in</p>';
+        return;
     }
     
-    // Show pending requests
-    const requestsDiv = document.getElementById('friend-requests');
-    requestsDiv.innerHTML = '<h4>Pending Requests:</h4>';
-    friendRequests.forEach(req => {
-        const reqDiv = document.createElement('div');
-        reqDiv.className = 'friend-request-item';
-        reqDiv.innerHTML = `
-            <span>${req.from}</span>
-            <button class="btn btn-small" onclick="acceptFriendRequest('${req.from}')">Accept</button>
-            <button class="btn btn-small" onclick="rejectFriendRequest('${req.from}')">Reject</button>
-        `;
-        requestsDiv.appendChild(reqDiv);
-    });
+    try {
+        // Load friends from server
+        const friendsResponse = await fetch(`/api/friends/${currentUser.username}`);
+        const friendsData = await friendsResponse.json();
+        
+        // Load friend requests
+        const requestsResponse = await fetch(`/api/friends/requests/${currentUser.username}`);
+        const requestsData = await requestsResponse.json();
+        
+        friendsList = friendsData.friends || [];
+        friendRequests = requestsData.requests || [];
+        
+        friendsDiv.innerHTML = '';
+        
+        if (friendsList.length === 0) {
+            friendsDiv.innerHTML = '<p style="color: #FFD700;">No friends yet. Send a friend request!</p>';
+        } else {
+            friendsList.forEach(friend => {
+                const friendDiv = document.createElement('div');
+                friendDiv.className = 'friend-item';
+                friendDiv.innerHTML = `
+                    <span>${friend}</span>
+                    <button class="btn btn-small" onclick="joinFriendLobby('${friend}')">Join Game</button>
+                `;
+                friendsDiv.appendChild(friendDiv);
+            });
+        }
+        
+        // Show pending requests
+        const requestsDiv = document.getElementById('friend-requests');
+        requestsDiv.innerHTML = '<h4>Pending Requests:</h4>';
+        if (friendRequests.length === 0) {
+            requestsDiv.innerHTML += '<p style="color: #999;">No pending requests</p>';
+        } else {
+            friendRequests.forEach(req => {
+                const reqDiv = document.createElement('div');
+                reqDiv.className = 'friend-request-item';
+                reqDiv.innerHTML = `
+                    <span>${req.from}</span>
+                    <button class="btn btn-small" onclick="acceptFriendRequest('${req.from}')">Accept</button>
+                    <button class="btn btn-small" onclick="rejectFriendRequest('${req.from}')">Reject</button>
+                `;
+                requestsDiv.appendChild(reqDiv);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading friends:', error);
+        // Fallback to localStorage
+        loadFriends();
+        friendsDiv.innerHTML = '';
+        if (friendsList.length === 0) {
+            friendsDiv.innerHTML = '<p style="color: #FFD700;">No friends yet. Send a friend request!</p>';
+        } else {
+            friendsList.forEach(friend => {
+                const friendDiv = document.createElement('div');
+                friendDiv.className = 'friend-item';
+                friendDiv.innerHTML = `
+                    <span>${friend}</span>
+                    <button class="btn btn-small" onclick="joinFriendLobby('${friend}')">Join Game</button>
+                `;
+                friendsDiv.appendChild(friendDiv);
+            });
+        }
+    }
 }
 
-function sendFriendRequest() {
+async function sendFriendRequest() {
     const username = document.getElementById('friend-username-input').value.trim();
     const errorDiv = document.getElementById('friends-error');
     
@@ -475,6 +490,52 @@ function sendFriendRequest() {
         errorDiv.textContent = 'Please enter a username';
         return;
     }
+    
+    if (!currentUser || !currentUser.username) {
+        errorDiv.textContent = 'You must be logged in';
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/friends/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: currentUser.username, to: username })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            errorDiv.textContent = '';
+            errorDiv.style.color = '#00ff00';
+            errorDiv.textContent = `Friend request sent to ${username}!`;
+            document.getElementById('friend-username-input').value = '';
+            setTimeout(() => {
+                errorDiv.textContent = '';
+                errorDiv.style.color = '#ff6b6b';
+            }, 3000);
+        } else {
+            errorDiv.textContent = data.error || 'Failed to send request';
+        }
+    } catch (error) {
+        console.error('Error sending friend request:', error);
+        errorDiv.textContent = 'Error sending request. Using fallback...';
+        // Fallback to localStorage
+        sendFriendRequestFallback(username);
+    }
+}
+
+function sendFriendRequestFallback(username) {
+    const allRequests = JSON.parse(localStorage.getItem('allFriendRequests') || '[]');
+    if (allRequests.find(r => r.from === currentUser.username && r.to === username)) {
+        document.getElementById('friends-error').textContent = 'Request already sent';
+        return;
+    }
+    allRequests.push({ from: currentUser.username, to: username, status: 'pending', createdAt: new Date() });
+    localStorage.setItem('allFriendRequests', JSON.stringify(allRequests));
+    document.getElementById('friends-error').textContent = `Friend request sent to ${username}!`;
+    document.getElementById('friend-username-input').value = '';
+}
     
     if (username === currentUser.username) {
         errorDiv.textContent = 'Cannot add yourself!';
@@ -523,7 +584,39 @@ function sendFriendRequest() {
     setTimeout(loadFriendsList, 500);
 }
 
-function acceptFriendRequest(fromUsername) {
+async function acceptFriendRequest(fromUsername) {
+    if (!currentUser || !currentUser.username) return;
+    
+    try {
+        const response = await fetch('/api/friends/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: fromUsername, to: currentUser.username })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            addLog(`Accepted friend request from ${fromUsername}`);
+            loadFriendsList();
+        } else {
+            alert(data.error || 'Failed to accept request');
+        }
+    } catch (error) {
+        console.error('Error accepting friend request:', error);
+        // Fallback
+        const allRequests = JSON.parse(localStorage.getItem('allFriendRequests') || '[]');
+        const request = allRequests.find(r => r.from === fromUsername && r.to === currentUser.username);
+        if (request) {
+            request.status = 'accepted';
+            const friends = JSON.parse(localStorage.getItem('friends') || '[]');
+            if (!friends.includes(fromUsername)) friends.push(fromUsername);
+            localStorage.setItem('friends', JSON.stringify(friends));
+            localStorage.setItem('allFriendRequests', JSON.stringify(allRequests));
+            loadFriendsList();
+        }
+    }
+}
     loadFriends();
     if (!friendsList.includes(fromUsername)) {
         friendsList.push(fromUsername);
@@ -534,7 +627,36 @@ function acceptFriendRequest(fromUsername) {
     loadFriendsList();
 }
 
-function rejectFriendRequest(fromUsername) {
+async function rejectFriendRequest(fromUsername) {
+    if (!currentUser || !currentUser.username) return;
+    
+    try {
+        const response = await fetch('/api/friends/reject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from: fromUsername, to: currentUser.username })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            addLog(`Rejected friend request from ${fromUsername}`);
+            loadFriendsList();
+        } else {
+            alert(data.error || 'Failed to reject request');
+        }
+    } catch (error) {
+        console.error('Error rejecting friend request:', error);
+        // Fallback
+        const allRequests = JSON.parse(localStorage.getItem('allFriendRequests') || '[]');
+        const request = allRequests.find(r => r.from === fromUsername && r.to === currentUser.username);
+        if (request) {
+            request.status = 'rejected';
+            localStorage.setItem('allFriendRequests', JSON.stringify(allRequests));
+            loadFriendsList();
+        }
+    }
+}
     friendRequests = friendRequests.filter(r => r.from !== fromUsername);
     saveFriends();
     loadFriendsList();

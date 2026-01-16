@@ -17,10 +17,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 // In-memory storage (use database in production)
 const users = new Map();
 const activeGames = new Map();
-const leaderboard = new Map(); // Server-side leaderboard
-const friends = new Map(); // Server-side friends: Map<username, Set<friendUsername>>
-const friendRequests = new Map(); // Server-side friend requests: Map<username, Array<{from, to, status}>>
-const lobbies = new Map(); // Server-side lobbies: Map<lobbyName, {password, players, host}>
+const leaderboard = new Map(); // username -> wins count
+const lobbies = new Map(); // lobbyId -> { name, password, players: [], host }
+const friendRequests = new Map(); // from_username -> [{ to, status }]
+const friendships = new Map(); // username -> [friend usernames]
 
 // API Routes
 app.post('/api/register', async (req, res) => {
@@ -129,88 +129,20 @@ app.post('/api/leaderboard/update', (req, res) => {
     }
     const currentWins = leaderboard.get(username) || 0;
     leaderboard.set(username, currentWins + 1);
-    res.json({ success: true });
-});
-
-// Friends API
-app.get('/api/friends/:username', (req, res) => {
-    const { username } = req.params;
-    const userFriends = friends.get(username) || new Set();
-    res.json({ friends: Array.from(userFriends) });
-});
-
-app.post('/api/friends/request', (req, res) => {
-    const { from, to } = req.body;
-    if (!from || !to) {
-        return res.status(400).json({ error: 'From and to usernames required' });
-    }
-    if (from === to) {
-        return res.status(400).json({ error: 'Cannot send request to yourself' });
-    }
-    
-    const requests = friendRequests.get(to) || [];
-    if (requests.find(r => r.from === from && r.status === 'pending')) {
-        return res.status(400).json({ error: 'Request already sent' });
-    }
-    
-    requests.push({ from, to, status: 'pending', timestamp: Date.now() });
-    friendRequests.set(to, requests);
-    res.json({ success: true });
-});
-
-app.post('/api/friends/accept', (req, res) => {
-    const { username, from } = req.body;
-    if (!username || !from) {
-        return res.status(400).json({ error: 'Username and from required' });
-    }
-    
-    const requests = friendRequests.get(username) || [];
-    const request = requests.find(r => r.from === from && r.status === 'pending');
-    if (!request) {
-        return res.status(400).json({ error: 'Request not found' });
-    }
-    
-    request.status = 'accepted';
-    
-    // Add to friends lists
-    if (!friends.has(username)) friends.set(username, new Set());
-    if (!friends.has(from)) friends.set(from, new Set());
-    friends.get(username).add(from);
-    friends.get(from).add(username);
-    
-    res.json({ success: true });
-});
-
-app.post('/api/friends/reject', (req, res) => {
-    const { username, from } = req.body;
-    if (!username || !from) {
-        return res.status(400).json({ error: 'Username and from required' });
-    }
-    
-    const requests = friendRequests.get(username) || [];
-    const request = requests.find(r => r.from === from && r.status === 'pending');
-    if (request) {
-        request.status = 'rejected';
-    }
-    
-    res.json({ success: true });
-});
-
-app.get('/api/friends/requests/:username', (req, res) => {
-    const { username } = req.params;
-    const requests = (friendRequests.get(username) || []).filter(r => r.status === 'pending');
-    res.json({ requests });
+    res.json({ success: true, wins: currentWins + 1 });
 });
 
 // Lobbies API
 app.get('/api/lobbies', (req, res) => {
     const lobbiesArray = Array.from(lobbies.entries())
-        .map(([name, data]) => ({
-            name,
-            playerCount: data.players.length,
-            hasPassword: !!data.password,
-            host: data.host
-        }));
+        .map(([id, lobby]) => ({
+            id,
+            name: lobby.name,
+            playerCount: lobby.players.length,
+            maxPlayers: 4,
+            hasPassword: !!lobby.password
+        }))
+        .filter(lobby => lobby.playerCount < 4);
     res.json({ lobbies: lobbiesArray });
 });
 
@@ -219,63 +151,101 @@ app.post('/api/lobbies/create', (req, res) => {
     if (!name || !host) {
         return res.status(400).json({ error: 'Lobby name and host required' });
     }
-    if (lobbies.has(name)) {
-        return res.status(400).json({ error: 'Lobby already exists' });
-    }
-    
-    lobbies.set(name, {
+    const lobbyId = `lobby_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    lobbies.set(lobbyId, {
+        name,
         password: password || null,
+        host,
         players: [{ username: host, socketId: null }],
-        host: host
+        createdAt: new Date()
     });
-    
-    res.json({ success: true });
+    res.json({ success: true, lobbyId });
 });
 
 app.post('/api/lobbies/join', (req, res) => {
-    const { name, password, username } = req.body;
-    if (!name || !username) {
-        return res.status(400).json({ error: 'Lobby name and username required' });
-    }
-    
-    const lobby = lobbies.get(name);
+    const { lobbyId, password, username } = req.body;
+    const lobby = lobbies.get(lobbyId);
     if (!lobby) {
         return res.status(404).json({ error: 'Lobby not found' });
     }
-    
     if (lobby.password && lobby.password !== password) {
         return res.status(401).json({ error: 'Incorrect password' });
     }
-    
-    if (lobby.players.length >= 6) {
+    if (lobby.players.length >= 4) {
         return res.status(400).json({ error: 'Lobby is full' });
     }
-    
-    if (lobby.players.find(p => p.username === username)) {
+    if (lobby.players.some(p => p.username === username)) {
         return res.status(400).json({ error: 'Already in lobby' });
     }
-    
     lobby.players.push({ username, socketId: null });
     res.json({ success: true, lobby });
 });
 
-app.post('/api/lobbies/leave', (req, res) => {
-    const { name, username } = req.body;
-    if (!name || !username) {
-        return res.status(400).json({ error: 'Lobby name and username required' });
+// Friends API
+app.post('/api/friends/request', (req, res) => {
+    const { from, to } = req.body;
+    if (!from || !to) {
+        return res.status(400).json({ error: 'From and to usernames required' });
     }
-    
-    const lobby = lobbies.get(name);
-    if (lobby) {
-        lobby.players = lobby.players.filter(p => p.username !== username);
-        if (lobby.players.length === 0) {
-            lobbies.delete(name);
-        } else if (lobby.host === username) {
-            lobby.host = lobby.players[0].username;
-        }
+    if (from === to) {
+        return res.status(400).json({ error: 'Cannot send request to yourself' });
     }
-    
+    const requests = friendRequests.get(from) || [];
+    if (requests.find(r => r.to === to && r.status === 'pending')) {
+        return res.status(400).json({ error: 'Request already sent' });
+    }
+    requests.push({ to, status: 'pending', createdAt: new Date() });
+    friendRequests.set(from, requests);
     res.json({ success: true });
+});
+
+app.get('/api/friends/requests/:username', (req, res) => {
+    const { username } = req.params;
+    const allRequests = [];
+    friendRequests.forEach((requests, from) => {
+        requests.forEach(req => {
+            if (req.to === username && req.status === 'pending') {
+                allRequests.push({ from, to: req.to, createdAt: req.createdAt });
+            }
+        });
+    });
+    res.json({ requests: allRequests });
+});
+
+app.post('/api/friends/accept', (req, res) => {
+    const { from, to } = req.body;
+    if (!from || !to) {
+        return res.status(400).json({ error: 'From and to usernames required' });
+    }
+    const requests = friendRequests.get(from) || [];
+    const request = requests.find(r => r.to === to && r.status === 'pending');
+    if (!request) {
+        return res.status(404).json({ error: 'Request not found' });
+    }
+    request.status = 'accepted';
+    const friends1 = friendships.get(from) || [];
+    const friends2 = friendships.get(to) || [];
+    if (!friends1.includes(to)) friends1.push(to);
+    if (!friends2.includes(from)) friends2.push(from);
+    friendships.set(from, friends1);
+    friendships.set(to, friends2);
+    res.json({ success: true });
+});
+
+app.post('/api/friends/reject', (req, res) => {
+    const { from, to } = req.body;
+    const requests = friendRequests.get(from) || [];
+    const request = requests.find(r => r.to === to && r.status === 'pending');
+    if (request) {
+        request.status = 'rejected';
+    }
+    res.json({ success: true });
+});
+
+app.get('/api/friends/:username', (req, res) => {
+    const { username } = req.params;
+    const friends = friendships.get(username) || [];
+    res.json({ friends });
 });
 
 // WebSocket for multiplayer

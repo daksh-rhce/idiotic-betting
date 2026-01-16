@@ -636,13 +636,20 @@ function initMazeGame() {
 let mazeGame = {
     canvas: null,
     ctx: null,
-    player: { x: 20, y: 20, size: 20 },
+    player: { x: 20, y: 20, size: 20, color: '#FF0000' },
     moneyBags: [],
     walls: [],
+    pressurePlates: [],
+    keys: [],
+    locks: [],
+    collectedKeys: { red: 0, blue: 0, green: 0, yellow: 0 },
+    level: 1,
     score: 0,
+    totalMoney: 0,
     gameStarted: false,
     gameOver: false,
-    keys: {}
+    keys: {},
+    exit: null
 };
 
 function startMazeGame() {
@@ -653,29 +660,166 @@ function startMazeGame() {
     mazeGame.ctx = canvas.getContext('2d');
     mazeGame.gameStarted = true;
     mazeGame.gameOver = false;
+    mazeGame.level = 1;
     mazeGame.score = 0;
-    mazeGame.player = { x: 20, y: 20, size: 20 };
-    mazeGame.moneyBags = [];
+    mazeGame.totalMoney = 0;
+    mazeGame.collectedKeys = { red: 0, blue: 0, green: 0, yellow: 0 };
     mazeGame.keys = {};
     
-    // Generate walls
-    generateMazeWalls();
+    generateMazeLevel(mazeGame.level);
     
-    // Generate money bags
-    for (let i = 0; i < 20; i++) {
-        let x, y;
-        do {
-            x = Math.random() * (canvas.width - 40) + 20;
-            y = Math.random() * (canvas.height - 40) + 20;
-        } while (isWallCollision(x, y, 15));
-        mazeGame.moneyBags.push({ x, y, size: 15, collected: false });
-    }
-    
-    // Arrow key controls
+    // WASD and Arrow key controls
     document.addEventListener('keydown', handleMazeKeyDown);
     document.addEventListener('keyup', handleMazeKeyUp);
     
     mazeGameLoop();
+}
+
+function generateMazeLevel(level) {
+    const canvas = mazeGame.canvas;
+    const cellSize = 40;
+    const cols = Math.floor(canvas.width / cellSize);
+    const rows = Math.floor(canvas.height / cellSize);
+    
+    // Generate maze using recursive backtracking
+    const maze = generateMazeAlgorithm(cols, rows);
+    
+    // Convert maze to walls
+    mazeGame.walls = [];
+    mazeGame.moneyBags = [];
+    mazeGame.pressurePlates = [];
+    mazeGame.keys = [];
+    mazeGame.locks = [];
+    
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const cell = maze[y][x];
+            if (cell.walls.top) {
+                mazeGame.walls.push({ x: x * cellSize, y: y * cellSize, width: cellSize, height: 2 });
+            }
+            if (cell.walls.left) {
+                mazeGame.walls.push({ x: x * cellSize, y: y * cellSize, width: 2, height: cellSize });
+            }
+            if (cell.walls.bottom) {
+                mazeGame.walls.push({ x: x * cellSize, y: (y + 1) * cellSize - 2, width: cellSize, height: 2 });
+            }
+            if (cell.walls.right) {
+                mazeGame.walls.push({ x: (x + 1) * cellSize - 2, y: y * cellSize, width: 2, height: cellSize });
+            }
+        }
+    }
+    
+    // Add outer walls
+    mazeGame.walls.push({ x: 0, y: 0, width: canvas.width, height: 2 });
+    mazeGame.walls.push({ x: 0, y: 0, width: 2, height: canvas.height });
+    mazeGame.walls.push({ x: canvas.width - 2, y: 0, width: 2, height: canvas.height });
+    mazeGame.walls.push({ x: 0, y: canvas.height - 2, width: canvas.width, height: 2 });
+    
+    // Place player at start
+    mazeGame.player = { x: cellSize + 10, y: cellSize + 10, size: 20, color: '#FF0000' };
+    
+    // Place exit at end
+    mazeGame.exit = { x: (cols - 2) * cellSize + 10, y: (rows - 2) * cellSize + 10, size: 30 };
+    
+    // Generate keys and locks based on level
+    const numKeys = Math.min(level, 4);
+    const keyColors = ['red', 'blue', 'green', 'yellow'];
+    
+    for (let i = 0; i < numKeys; i++) {
+        const color = keyColors[i];
+        let x, y;
+        do {
+            x = Math.random() * (canvas.width - 60) + 30;
+            y = Math.random() * (canvas.height - 60) + 30;
+        } while (isWallCollision(x, y, 20) || isPositionOccupied(x, y));
+        
+        // Pressure plate that gives key
+        mazeGame.pressurePlates.push({ x, y, size: 25, color, activated: false });
+        
+        // Lock that requires key
+        let lockX, lockY;
+        do {
+            lockX = Math.random() * (canvas.width - 60) + 30;
+            lockY = Math.random() * (canvas.height - 60) + 30;
+        } while (isWallCollision(lockX, lockY, 30) || isPositionOccupied(lockX, lockY) || 
+                 Math.abs(lockX - x) < 100 || Math.abs(lockY - y) < 100);
+        
+        mazeGame.locks.push({ x: lockX, y: lockY, size: 30, color, unlocked: false });
+    }
+    
+    // Place money bag at exit (1 per level)
+    mazeGame.moneyBags.push({ 
+        x: mazeGame.exit.x + 5, 
+        y: mazeGame.exit.y + 5, 
+        size: 20, 
+        collected: false 
+    });
+}
+
+function generateMazeAlgorithm(cols, rows) {
+    const maze = [];
+    for (let y = 0; y < rows; y++) {
+        maze[y] = [];
+        for (let x = 0; x < cols; x++) {
+            maze[y][x] = {
+                walls: { top: true, right: true, bottom: true, left: true },
+                visited: false
+            };
+        }
+    }
+    
+    const stack = [];
+    let current = { x: 0, y: 0 };
+    maze[current.y][current.x].visited = true;
+    
+    while (true) {
+        const neighbors = [];
+        const { x, y } = current;
+        
+        if (y > 0 && !maze[y - 1][x].visited) neighbors.push({ x, y: y - 1, dir: 'top' });
+        if (x < cols - 1 && !maze[y][x + 1].visited) neighbors.push({ x: x + 1, y, dir: 'right' });
+        if (y < rows - 1 && !maze[y + 1][x].visited) neighbors.push({ x, y: y + 1, dir: 'bottom' });
+        if (x > 0 && !maze[y][x - 1].visited) neighbors.push({ x: x - 1, y, dir: 'left' });
+        
+        if (neighbors.length > 0) {
+            const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+            stack.push(current);
+            
+            // Remove wall between current and next
+            if (next.dir === 'top') {
+                maze[y][x].walls.top = false;
+                maze[y - 1][x].walls.bottom = false;
+            } else if (next.dir === 'right') {
+                maze[y][x].walls.right = false;
+                maze[y][x + 1].walls.left = false;
+            } else if (next.dir === 'bottom') {
+                maze[y][x].walls.bottom = false;
+                maze[y + 1][x].walls.top = false;
+            } else if (next.dir === 'left') {
+                maze[y][x].walls.left = false;
+                maze[y][x - 1].walls.right = false;
+            }
+            
+            current = { x: next.x, y: next.y };
+            maze[current.y][current.x].visited = true;
+        } else if (stack.length > 0) {
+            current = stack.pop();
+        } else {
+            break;
+        }
+    }
+    
+    return maze;
+}
+
+function isPositionOccupied(x, y) {
+    return mazeGame.pressurePlates.some(p => 
+        Math.abs(p.x - x) < 50 && Math.abs(p.y - y) < 50
+    ) || mazeGame.locks.some(l => 
+        Math.abs(l.x - x) < 50 && Math.abs(l.y - y) < 50
+    ) || mazeGame.moneyBags.some(b => 
+        Math.abs(b.x - x) < 50 && Math.abs(b.y - y) < 50
+    );
 }
 
 function handleMazeKeyDown(e) {
@@ -688,17 +832,7 @@ function handleMazeKeyUp(e) {
     mazeGame.keys[e.key] = false;
 }
 
-function generateMazeWalls() {
-    mazeGame.walls = [];
-    // Create some random walls
-    for (let i = 0; i < 15; i++) {
-        const x = Math.random() * (mazeGame.canvas.width - 100) + 50;
-        const y = Math.random() * (mazeGame.canvas.height - 100) + 50;
-        const width = Math.random() * 80 + 40;
-        const height = Math.random() * 80 + 40;
-        mazeGame.walls.push({ x, y, width, height });
-    }
-}
+// generateMazeWalls removed - using generateMazeLevel instead
 
 function isWallCollision(x, y, size) {
     return mazeGame.walls.some(wall => 
@@ -712,7 +846,7 @@ function isWallCollision(x, y, size) {
 function updateMazeGame() {
     if (!mazeGame.gameStarted || mazeGame.gameOver) return;
     
-    const speed = 3;
+    const speed = 4;
     let newX = mazeGame.player.x;
     let newY = mazeGame.player.y;
     
@@ -740,8 +874,38 @@ function updateMazeGame() {
         }
     }
     
+    // Check pressure plate activation
+    mazeGame.pressurePlates.forEach(plate => {
+        if (!plate.activated) {
+            const dx = plate.x - mazeGame.player.x;
+            const dy = plate.y - mazeGame.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < (mazeGame.player.size + plate.size) / 2) {
+                plate.activated = true;
+                mazeGame.collectedKeys[plate.color]++;
+                updateMazeDisplay();
+            }
+        }
+    });
+    
+    // Check lock unlocking
+    mazeGame.locks.forEach(lock => {
+        if (!lock.unlocked && mazeGame.collectedKeys[lock.color] > 0) {
+            const dx = lock.x - mazeGame.player.x;
+            const dy = lock.y - mazeGame.player.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < (mazeGame.player.size + lock.size) / 2) {
+                lock.unlocked = true;
+                mazeGame.collectedKeys[lock.color]--;
+                updateMazeDisplay();
+            }
+        }
+    });
+    
     // Check money bag collection
-    mazeGame.moneyBags.forEach((bag, index) => {
+    mazeGame.moneyBags.forEach((bag) => {
         if (!bag.collected) {
             const dx = bag.x - mazeGame.player.x;
             const dy = bag.y - mazeGame.player.y;
@@ -753,6 +917,7 @@ function updateMazeGame() {
                 const player = getMinigamePlayer();
                 if (player) {
                     player.money += 10; // 1 bag = 10 money
+                    mazeGame.totalMoney += 10;
                 }
                 updateMazeDisplay();
                 updateMinigameDisplay();
@@ -760,15 +925,30 @@ function updateMazeGame() {
         }
     });
     
-    // Check if all bags collected
-    if (mazeGame.moneyBags.every(bag => bag.collected)) {
-        mazeGame.gameOver = true;
-        const resultDiv = document.getElementById('maze-result');
-        if (resultDiv) {
-            resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">You collected all ${mazeGame.score} money bags! +${mazeGame.score} money!</div>`;
-        }
-        if (typeof addLog === 'function') {
-            addLog(`🧩 Maze Game: Collected ${mazeGame.score} money bags! +${mazeGame.score} money!`);
+    // Check exit (all locks must be unlocked)
+    if (mazeGame.exit && mazeGame.moneyBags.every(bag => bag.collected) && 
+        mazeGame.locks.every(lock => lock.unlocked)) {
+        const dx = mazeGame.exit.x - mazeGame.player.x;
+        const dy = mazeGame.exit.y - mazeGame.player.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < (mazeGame.player.size + mazeGame.exit.size) / 2) {
+            // Level complete!
+            mazeGame.level++;
+            const bonus = mazeGame.level * 50;
+            const player = getMinigamePlayer();
+            if (player) {
+                player.money += bonus;
+                mazeGame.totalMoney += bonus;
+            }
+            
+            if (typeof addLog === 'function') {
+                addLog(`🧩 Level ${mazeGame.level - 1} Complete! Bonus: +${bonus} money!`);
+            }
+            
+            // Generate next level
+            generateMazeLevel(mazeGame.level);
+            updateMazeDisplay();
         }
     }
 }
@@ -779,23 +959,58 @@ function drawMazeGame() {
     const ctx = mazeGame.ctx;
     const canvas = mazeGame.canvas;
     
-    // Clear canvas
-    ctx.fillStyle = '#000000';
+    // Clear canvas with dark background
+    ctx.fillStyle = '#1a0000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw walls
+    // Draw walls (scary red theme)
     ctx.fillStyle = '#8B0000';
     mazeGame.walls.forEach(wall => {
         ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
         ctx.strokeStyle = '#FF0000';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1;
         ctx.strokeRect(wall.x, wall.y, wall.width, wall.height);
     });
     
+    // Draw locks (only if not unlocked)
+    mazeGame.locks.forEach(lock => {
+        if (!lock.unlocked) {
+            const colors = { red: '#FF0000', blue: '#0000FF', green: '#00FF00', yellow: '#FFFF00' };
+            ctx.fillStyle = colors[lock.color] || '#FF0000';
+            ctx.fillRect(lock.x, lock.y, lock.size, lock.size);
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(lock.x, lock.y, lock.size, lock.size);
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('🔒', lock.x + lock.size/2, lock.y + lock.size/2 + 7);
+        }
+    });
+    
+    // Draw pressure plates
+    mazeGame.pressurePlates.forEach(plate => {
+        const colors = { red: '#FF6666', blue: '#6666FF', green: '#66FF66', yellow: '#FFFF66' };
+        ctx.fillStyle = plate.activated ? colors[plate.color] : '#444444';
+        ctx.beginPath();
+        ctx.arc(plate.x + plate.size/2, plate.y + plate.size/2, plate.size/2, 0, Math.PI * 2);
+        ctx.fill();
+        if (plate.activated) {
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('✓', plate.x + plate.size/2, plate.y + plate.size/2 + 5);
+        } else {
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText('⭕', plate.x + plate.size/2, plate.y + plate.size/2 + 4);
+        }
+    });
+    
     // Draw money bags
-    ctx.fillStyle = '#FFD700';
     mazeGame.moneyBags.forEach(bag => {
         if (!bag.collected) {
+            ctx.fillStyle = '#FFD700';
             ctx.beginPath();
             ctx.arc(bag.x + bag.size/2, bag.y + bag.size/2, bag.size/2, 0, Math.PI * 2);
             ctx.fill();
@@ -803,31 +1018,67 @@ function drawMazeGame() {
             ctx.lineWidth = 2;
             ctx.stroke();
             ctx.fillStyle = '#000';
-            ctx.font = 'bold 12px Arial';
+            ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('💰', bag.x + bag.size/2, bag.y + bag.size/2 + 4);
-            ctx.fillStyle = '#FFD700';
+            ctx.fillText('💰', bag.x + bag.size/2, bag.y + bag.size/2 + 5);
         }
     });
     
-    // Draw player
-    ctx.fillStyle = '#FF0000';
-    ctx.fillRect(mazeGame.player.x, mazeGame.player.y, mazeGame.player.size, mazeGame.player.size);
+    // Draw exit
+    if (mazeGame.exit) {
+        const allUnlocked = mazeGame.locks.every(lock => lock.unlocked);
+        ctx.fillStyle = allUnlocked ? '#00FF00' : '#666666';
+        ctx.beginPath();
+        ctx.arc(mazeGame.exit.x + mazeGame.exit.size/2, mazeGame.exit.y + mazeGame.exit.size/2, mazeGame.exit.size/2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('🚪', mazeGame.exit.x + mazeGame.exit.size/2, mazeGame.exit.y + mazeGame.exit.size/2 + 7);
+    }
+    
+    // Draw player (cat-like)
+    ctx.fillStyle = mazeGame.player.color;
+    ctx.beginPath();
+    ctx.arc(mazeGame.player.x + mazeGame.player.size/2, mazeGame.player.y + mazeGame.player.size/2, mazeGame.player.size/2, 0, Math.PI * 2);
+    ctx.fill();
     ctx.strokeStyle = '#FFD700';
     ctx.lineWidth = 2;
-    ctx.strokeRect(mazeGame.player.x, mazeGame.player.y, mazeGame.player.size, mazeGame.player.size);
+    ctx.stroke();
+    // Cat eyes
+    ctx.fillStyle = '#FF0000';
+    ctx.beginPath();
+    ctx.arc(mazeGame.player.x + mazeGame.player.size/2 - 4, mazeGame.player.y + mazeGame.player.size/2 - 2, 2, 0, Math.PI * 2);
+    ctx.arc(mazeGame.player.x + mazeGame.player.size/2 + 4, mazeGame.player.y + mazeGame.player.size/2 - 2, 2, 0, Math.PI * 2);
+    ctx.fill();
     
-    // Draw score
+    // Draw UI overlay
     ctx.fillStyle = '#FFD700';
-    ctx.font = 'bold 16px Arial';
+    ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText(`Money: ${mazeGame.score}`, 10, 25);
+    ctx.fillText(`Level: ${mazeGame.level}`, 10, 20);
+    ctx.fillText(`Money: ${mazeGame.totalMoney}`, 10, 40);
+    ctx.fillText(`Keys: R:${mazeGame.collectedKeys.red} B:${mazeGame.collectedKeys.blue} G:${mazeGame.collectedKeys.green} Y:${mazeGame.collectedKeys.yellow}`, 10, 60);
 }
 
 function updateMazeDisplay() {
     const moneyCount = document.getElementById('maze-money-count');
+    const levelDisplay = document.getElementById('maze-level');
+    const keysDisplay = document.getElementById('maze-keys');
+    
     if (moneyCount) {
-        moneyCount.textContent = mazeGame.score;
+        moneyCount.textContent = mazeGame.totalMoney;
+    }
+    if (levelDisplay) {
+        levelDisplay.textContent = mazeGame.level;
+    }
+    if (keysDisplay) {
+        const totalKeys = mazeGame.collectedKeys.red + mazeGame.collectedKeys.blue + 
+                         mazeGame.collectedKeys.green + mazeGame.collectedKeys.yellow;
+        keysDisplay.textContent = totalKeys;
     }
 }
 

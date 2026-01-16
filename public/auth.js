@@ -304,30 +304,9 @@ function selectMode(mode) {
         initOnlineGame();
     } else if (mode === 'minigames') {
         showScreen('minigames-screen');
-        // Ensure minigames menu shows
-        setTimeout(() => {
-            if (typeof showMinigamesMenu === 'function') {
-                showMinigamesMenu();
-            } else {
-                // Fallback: directly show menu
-                const container = document.getElementById('minigame-container');
-                if (container && typeof MINIGAMES !== 'undefined') {
-                    container.innerHTML = `
-                        <div class="minigames-menu">
-                            <h2>🎮 Minigames</h2>
-                            <div class="minigames-grid">
-                                ${MINIGAMES.map((game, index) => `
-                                    <div class="minigame-card" onclick="selectMinigame(${index})">
-                                        <div class="minigame-icon">${game.icon}</div>
-                                        <div class="minigame-name">${game.name}</div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-        }, 100);
+        if (typeof showMinigamesMenu === 'function') {
+            showMinigamesMenu();
+        }
     }
 }
 

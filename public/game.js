@@ -396,10 +396,9 @@ function processNextBidder() {
             return;
         }
         
-        // Reset for another round - clear pass history for this round only
-        // Remove pass entries from this round so players can bid again
-        gameState.biddingHistory = gameState.biddingHistory.filter(h => h.action !== 'pass' || h.reason !== 'player-passed');
-        gameState.biddingOrder = activeBidders;
+        // Reset for another round - ALL players can bid again (passes don't prevent future bidding)
+        gameState.biddingOrder = [...gameState.players]; // Reset to all players
+        gameState.biddingHistory = []; // Clear history so passes don't prevent bidding
         gameState.currentBidderIndex = 0;
     }
     
@@ -572,38 +571,20 @@ function passBid() {
 
 function passBidForPlayer(playerId) {
     const player = gameState.players.find(p => p.id === playerId);
-    if (!player) return;
-    
-    // Pass only affects this round - player can bid again next round
-    gameState.biddingHistory.push({ playerId, playerName: player.name, action: 'pass', reason: 'player-passed', round: gameState.round });
+    // Use 'pass' instead of 'final-pass' - allows player to bid again in next round of same auction
+    gameState.biddingHistory.push({ playerId, playerName: player.name, action: 'pass', reason: 'player-passed' });
     addLog(`${player.name} passes.`);
-    
-    // Track consecutive passes
-    gameState.consecutivePasses++;
-    
-    // 5 passes rule - everyone gets 500 cash
-    if (gameState.consecutivePasses >= 5) {
-        gameState.players.forEach(p => {
-            p.money += 500;
-            addLog(`💰 ${p.name} received 500 cash (5 passes rule)!`);
-        });
-        gameState.consecutivePasses = 0;
-        updateDisplay();
-    }
     
     // Disable buttons temporarily
     if (playerId === gameState.playerId) {
-        const bidBtn = document.getElementById('bid-btn');
-        const passBtn = document.getElementById('pass-btn');
-        if (bidBtn) bidBtn.disabled = true;
-        if (passBtn) passBtn.disabled = true;
+        document.getElementById('bid-btn').disabled = true;
+        document.getElementById('pass-btn').disabled = true;
     }
     
     gameState.currentBidderIndex++;
     updateDisplay();
     
-    // Continue immediately - no delay
-    setTimeout(() => processNextBidder(), 300);
+    setTimeout(() => processNextBidder(), 1000);
 }
 
 function endAuction() {
@@ -1842,54 +1823,34 @@ function sellPropertyAt(index) {
     updateDisplay();
 }
 
-async function showLeaderboard() {
+function showLeaderboard() {
     const modal = document.getElementById('leaderboard-modal');
     const content = document.getElementById('leaderboard-content');
     
-    content.innerHTML = '<p style="color: #FFD700;">Loading leaderboard...</p>';
-    modal.style.display = 'block';
-    
-    try {
-        const response = await fetch('/api/leaderboard');
-        const data = await response.json();
-        
-        if (data.leaderboard.length === 0) {
-            content.innerHTML = '<p style="color: #FFD700;">No wins recorded yet. Play games to appear on the leaderboard!</p>';
-        } else {
-            content.innerHTML = '<div class="leaderboard-list">';
-            data.leaderboard.slice(0, 10).forEach((entry, index) => {
-                content.innerHTML += `
-                    <div class="leaderboard-entry">
-                        <span style="font-weight: bold; color: #FFD700;">#${index + 1}</span>
-                        <span>${entry.username}</span>
-                        <span style="color: #51cf66;">${entry.wins} ${entry.wins === 1 ? 'win' : 'wins'}</span>
-                    </div>
-                `;
-            });
-            content.innerHTML += '</div>';
-        }
-    } catch (error) {
-        console.error('Error loading leaderboard:', error);
-        // Fallback to localStorage
-        const stored = localStorage.getItem('leaderboard');
-        const leaderboard = stored ? JSON.parse(stored) : [];
-        
-        if (leaderboard.length === 0) {
-            content.innerHTML = '<p style="color: #FFD700;">No wins recorded yet. Play games to appear on the leaderboard!</p>';
-        } else {
-            content.innerHTML = '<div class="leaderboard-list">';
-            leaderboard.slice(0, 10).forEach((entry, index) => {
-                content.innerHTML += `
-                    <div class="leaderboard-entry">
-                        <span style="font-weight: bold; color: #FFD700;">#${index + 1}</span>
-                        <span>${entry.username || entry.name}</span>
-                        <span style="color: #51cf66;">${entry.wins} ${entry.wins === 1 ? 'win' : 'wins'}</span>
-                    </div>
-                `;
-            });
-            content.innerHTML += '</div>';
-        }
+    if (typeof loadLeaderboard === 'function') {
+        loadLeaderboard();
     }
+    
+    const stored = localStorage.getItem('leaderboard');
+    const leaderboard = stored ? JSON.parse(stored) : [];
+    
+    if (leaderboard.length === 0) {
+        content.innerHTML = '<p style="color: #FFD700;">No wins recorded yet. Play games to appear on the leaderboard!</p>';
+    } else {
+        content.innerHTML = '<div class="leaderboard-list">';
+        leaderboard.slice(0, 10).forEach((entry, index) => {
+            content.innerHTML += `
+                <div class="leaderboard-entry">
+                    <span style="font-weight: bold; color: #FFD700;">#${index + 1}</span>
+                    <span>${entry.username}</span>
+                    <span style="color: #51cf66;">${entry.wins} ${entry.wins === 1 ? 'win' : 'wins'}</span>
+                </div>
+            `;
+        });
+        content.innerHTML += '</div>';
+    }
+    
+    modal.style.display = 'block';
 }
 
 // Global functions for onclick handlers
