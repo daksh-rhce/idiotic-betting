@@ -18,7 +18,10 @@ let gameState = {
     selectedTasks: [],
     chaosCardPlayedThisTurn: false,
     gameMode: 'solo',
-    wheelSpun: false
+    wheelSpun: false,
+    auctionTimer: null,
+    auctionTimerSeconds: 30,
+    consecutivePasses: 0
 };
 
 // Import card data (same as before)
@@ -284,6 +287,16 @@ function startAuction() {
     gameState.currentBidderIndex = 0;
     
     gameState.currentPhase = 'auction';
+    gameState.consecutivePasses = 0; // Reset consecutive passes for new auction
+    
+    // Clear any existing timer
+    if (gameState.auctionTimer) {
+        clearInterval(gameState.auctionTimer);
+    }
+    
+    // Start 30 second timer
+    gameState.auctionTimerSeconds = 30;
+    startAuctionTimer();
     
     // Make sure buttons are enabled for human player
     const player = gameState.players[gameState.playerId];
@@ -298,6 +311,47 @@ function startAuction() {
     
     // Start bidding
     processNextBidder();
+}
+
+function startAuctionTimer() {
+    const timerDisplay = document.getElementById('auction-timer');
+    if (timerDisplay) {
+        timerDisplay.textContent = `${gameState.auctionTimerSeconds}s`;
+        timerDisplay.style.display = 'block';
+    }
+    
+    gameState.auctionTimer = setInterval(() => {
+        gameState.auctionTimerSeconds--;
+        
+        if (timerDisplay) {
+            timerDisplay.textContent = `${gameState.auctionTimerSeconds}s`;
+            if (gameState.auctionTimerSeconds <= 5) {
+                timerDisplay.style.color = '#FF0000';
+                timerDisplay.style.animation = 'pulse 0.5s infinite';
+            }
+        }
+        
+        if (gameState.auctionTimerSeconds <= 0) {
+            clearInterval(gameState.auctionTimer);
+            gameState.auctionTimer = null;
+            // Timer expired - highest bidder wins
+            if (gameState.highestBidder !== null) {
+                const winner = gameState.players.find(p => p.id === gameState.highestBidder);
+                addLog(`⏰ Timer expired! ${winner.name} wins with bid of ${gameState.currentBid}!`);
+                endAuction();
+            } else {
+                addLog(`⏰ Timer expired! No bids - property discarded.`);
+                gameState.propertyDeck.unshift(gameState.currentAuction);
+                setTimeout(() => {
+                    if (gameState.propertyDeck.length > 0) {
+                        startAuction();
+                    } else {
+                        endGame();
+                    }
+                }, 1000);
+            }
+        }
+    }, 1000);
 }
 
 function processNextBidder() {
@@ -475,6 +529,9 @@ function placeBidForPlayer(playerId, bidAmount) {
     if (!player || bidAmount < gameState.currentBid + 50 || bidAmount > player.money) {
         return;
     }
+    
+    // Reset consecutive passes when someone bids
+    gameState.consecutivePasses = 0;
     
     // Update bid amount (must be at least 50 more)
     const actualBid = Math.max(gameState.currentBid + 50, bidAmount);
