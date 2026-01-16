@@ -1045,20 +1045,31 @@ function drawMazeGame() {
         ctx.fillText('🚪', mazeGame.exit.x + mazeGame.exit.size/2, mazeGame.exit.y + mazeGame.exit.size/2 + 7);
     }
     
-    // Draw player (cat-like)
-    ctx.fillStyle = mazeGame.player.color;
+    // Draw player with current skin
+    const skin = MAZE_SKINS[mazeGameSkin] || MAZE_SKINS.default;
+    ctx.fillStyle = skin.rainbow ? `hsl(${(Date.now() / 10) % 360}, 70%, 50%)` : (mazeGame.player.color || skin.playerColor);
     ctx.beginPath();
     ctx.arc(mazeGame.player.x + mazeGame.player.size/2, mazeGame.player.y + mazeGame.player.size/2, mazeGame.player.size/2, 0, Math.PI * 2);
     ctx.fill();
     ctx.strokeStyle = '#FFD700';
     ctx.lineWidth = 2;
     ctx.stroke();
-    // Cat eyes
-    ctx.fillStyle = '#FF0000';
-    ctx.beginPath();
-    ctx.arc(mazeGame.player.x + mazeGame.player.size/2 - 4, mazeGame.player.y + mazeGame.player.size/2 - 2, 2, 0, Math.PI * 2);
-    ctx.arc(mazeGame.player.x + mazeGame.player.size/2 + 4, mazeGame.player.y + mazeGame.player.size/2 - 2, 2, 0, Math.PI * 2);
-    ctx.fill();
+    
+    // Draw player symbol if it's not a simple circle
+    if (mazeGame.player.symbol && mazeGame.player.symbol.length > 1) {
+        ctx.fillStyle = '#FFF';
+        ctx.font = 'bold 14px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(mazeGame.player.symbol, mazeGame.player.x + mazeGame.player.size/2, mazeGame.player.y + mazeGame.player.size/2);
+    } else {
+        // Default cat eyes for default skin
+        ctx.fillStyle = '#FF0000';
+        ctx.beginPath();
+        ctx.arc(mazeGame.player.x + mazeGame.player.size/2 - 4, mazeGame.player.y + mazeGame.player.size/2 - 2, 2, 0, Math.PI * 2);
+        ctx.arc(mazeGame.player.x + mazeGame.player.size/2 + 4, mazeGame.player.y + mazeGame.player.size/2 - 2, 2, 0, Math.PI * 2);
+        ctx.fill();
+    }
     
     // Draw UI overlay
     ctx.fillStyle = '#FFD700';
