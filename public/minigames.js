@@ -130,12 +130,16 @@ function spinSlotMachine() {
             }
             
             if (win > 0) {
-                player.money += win;
-                resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">WIN! +${win} money!</div>`;
-                addLog(`🎰 Slot Machine: Won ${win} money!`);
+                minigamesState.minigameCharge += win;
+                resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">WIN! +${win} charge!</div>`;
+                addLog(`🎰 Slot Machine: Won ${win} charge!`);
+                saveMinigameCharge();
+                updateMinigameChargeDisplay();
+                const chargeDisplay = document.getElementById('slot-charge-display');
+                if (chargeDisplay) chargeDisplay.textContent = minigamesState.minigameCharge;
             } else {
-                resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Lost ${bet} money</div>`;
-                addLog(`🎰 Slot Machine: Lost ${bet} money`);
+                resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Lost ${bet} charge</div>`;
+                addLog(`🎰 Slot Machine: Lost ${bet} charge`);
             }
             updateMinigameDisplay();
         }
@@ -1430,10 +1434,15 @@ function mazeGameLoop() {
 // Minigame 12: Snake Game
 function initSnakeGame() {
     const container = document.getElementById('minigame-container');
+    if (!container) return;
+    loadMinigameCharge();
     container.innerHTML = `
         <div class="minigame-snake">
             <h2>🐍 Snake Game</h2>
-            <p>Use Arrow Keys or WASD to control the snake! Eat food to grow. Each food = 5 money. Collision = Game Over!</p>
+            <p>Use Arrow Keys or WASD to control the snake! Eat food to grow. Each food = 5 charge! Collision = Game Over!</p>
+            <div style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">
+                ⚡ Your Charge: <span id="snake-charge-display">${minigamesState.minigameCharge}</span>
+            </div>
             <div id="snake-canvas-container" style="text-align: center; margin: 20px 0;">
                 <canvas id="snake-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
             </div>

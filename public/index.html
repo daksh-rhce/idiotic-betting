@@ -103,7 +103,11 @@
     <!-- Lobby Screen -->
     <div id="lobby-screen" class="screen">
         <div class="lobby-container">
-            <h1>🎰 Game Lobby</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <button class="btn btn-small" onclick="showScreen('mode-screen')">← Back to Modes</button>
+                <h1 style="flex: 1; text-align: center; margin: 0;">🎰 Game Lobby</h1>
+                <div style="width: 150px;"></div>
+            </div>
             <div class="lobby-tabs">
                 <button class="tab-btn active" onclick="showCreateLobby()">Create Lobby</button>
                 <button class="tab-btn" onclick="showJoinLobby()">Join Lobby</button>
@@ -166,7 +170,11 @@
     <div id="game-screen" class="screen">
         <div class="game-container">
             <header>
-                <h1>🎲 Idiotic Betting</h1>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <button class="btn btn-small" onclick="showScreen('mode-screen')" style="margin-right: 10px;">← Back to Modes</button>
+                    <h1 style="flex: 1; text-align: center; margin: 0;">🎲 Idiotic Betting</h1>
+                    <div style="width: 150px;"></div>
+                </div>
                 <div class="game-info">
                     <div class="phase-display">
                         <span id="current-phase">Waiting...</span>
