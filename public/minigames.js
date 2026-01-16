@@ -889,6 +889,10 @@ function selectMazeSkin(skinKey) {
 // Minigame 11: Maze Game
 function initMazeGame() {
     const container = document.getElementById('minigame-container');
+    if (!container) {
+        console.error('minigame-container not found');
+        return;
+    }
     container.innerHTML = `
         <div class="minigame-maze">
             <h2>🧩 Scary Cat Maze Game - Level <span id="maze-level-display">1</span></h2>
