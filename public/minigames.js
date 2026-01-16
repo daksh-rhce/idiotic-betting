@@ -2941,5 +2941,15 @@ if (typeof window !== 'undefined') {
     window.loadMazeSkin = loadMazeSkin;
     window.buyMazeSkin = buyMazeSkin;
     window.selectMazeSkin = selectMazeSkin;
+    window.loadMinigameCharge = loadMinigameCharge;
+    window.addMinigameCharge = addMinigameCharge;
+    window.updateMinigameChargeDisplay = updateMinigameChargeDisplay;
+}
+
+// Load minigame charge on page load
+if (typeof window !== 'undefined' && document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadMinigameCharge);
+} else {
+    loadMinigameCharge();
 }
 
