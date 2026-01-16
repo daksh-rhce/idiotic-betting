@@ -437,7 +437,7 @@ function drawFlappyGame() {
         ctx.textAlign = 'center';
         ctx.fillText('Game Over!', canvas.width / 2, canvas.height / 2 - 20);
         ctx.fillText(`Score: ${flappyGame.score}`, canvas.width / 2, canvas.height / 2);
-        ctx.fillText(`Bonus: +${flappyGame.score * 10}💰`, canvas.width / 2, canvas.height / 2 + 20);
+        // Points are already given per pipe, no bonus needed
         ctx.fillText('Click to Play Again', canvas.width / 2, canvas.height / 2 + 50);
         ctx.textAlign = 'left';
     } else if (!flappyGame.gameStarted) {
