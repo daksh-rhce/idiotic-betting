@@ -13,7 +13,7 @@ function checkAdminStatus() {
 
 // Redeem code function
 function redeemCode() {
-    const codeInput = document.getElementById('redeem-code-input');
+    const codeInput = document.getElementById('redeem-code-input') || document.getElementById('redeem-code-input-game');
     const code = codeInput ? codeInput.value.trim() : '';
     
     if (code === 'iwanttobeanadminalot') {

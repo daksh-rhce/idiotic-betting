@@ -1,8 +1,41 @@
 // Minigames System
 let minigamesState = {
     currentGame: null,
-    playerMoney: 0
+    playerMoney: 0,
+    minigameCharge: 0  // New separate currency for minigames
 };
+
+// Load minigame charge from localStorage
+function loadMinigameCharge() {
+    const saved = localStorage.getItem('minigameCharge');
+    if (saved) {
+        minigamesState.minigameCharge = parseInt(saved) || 0;
+    }
+    updateMinigameChargeDisplay();
+}
+
+// Save minigame charge to localStorage
+function saveMinigameCharge() {
+    localStorage.setItem('minigameCharge', minigamesState.minigameCharge.toString());
+    updateMinigameChargeDisplay();
+}
+
+// Update minigame charge display
+function updateMinigameChargeDisplay() {
+    const display = document.getElementById('minigame-charge-count');
+    if (display) {
+        display.textContent = minigamesState.minigameCharge;
+    }
+}
+
+// Add charge (called from minigames)
+function addMinigameCharge(amount) {
+    minigamesState.minigameCharge += amount;
+    saveMinigameCharge();
+    if (typeof addLog === 'function') {
+        addLog(`⚡ Earned ${amount} minigame charge! (Total: ${minigamesState.minigameCharge})`);
+    }
+}
 
 // Helper function to get player safely
 function getMinigamePlayer() {
@@ -46,15 +79,16 @@ function initSlotMachine() {
 function spinSlotMachine() {
     const betInput = document.getElementById('slot-bet');
     const bet = parseInt(betInput.value) || 50;
-    const player = getMinigamePlayer();
     
-    if (!player || player.money < bet) {
-        alert('Not enough money!');
+    loadMinigameCharge();
+    if (minigamesState.minigameCharge < bet) {
+        alert(`Not enough minigame charge! You need ${bet}, but you have ${minigamesState.minigameCharge}. Play Snake to earn charge!`);
         return;
     }
     
-    player.money -= bet;
-    updateMinigameDisplay();
+    minigamesState.minigameCharge -= bet;
+    saveMinigameCharge();
+    updateMinigameChargeDisplay();
     
     const symbols = ['🍒', '🍋', '🍊', '🍇', '🍉', '⭐', '💎', '7️⃣'];
     const reel1 = document.getElementById('reel1');
@@ -2840,9 +2874,14 @@ function showMinigamesMenu() {
         }, 100);
         return;
     }
+    loadMinigameCharge();
     container.innerHTML = `
         <div class="minigames-menu">
             <h2>🎮 Minigames</h2>
+            <div style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin-bottom: 20px; text-align: center;">
+                ⚡ Your Minigame Charge: <span id="menu-charge-display">${minigamesState.minigameCharge}</span>
+            </div>
+            <p style="text-align: center; color: #FFD700; margin-bottom: 20px;">Play minigames like Snake to earn charge! Each food in Snake = 5 charge!</p>
             <div class="minigames-grid">
                 ${MINIGAMES.map((game, index) => `
                     <div class="minigame-card" onclick="selectMinigame(${index})">
@@ -2853,6 +2892,7 @@ function showMinigamesMenu() {
             </div>
         </div>
     `;
+    updateMinigameChargeDisplay();
 }
 
 function selectMinigame(index) {
@@ -2889,5 +2929,8 @@ if (typeof window !== 'undefined') {
     window.selectMinigame = selectMinigame;
     window.initMinigames = initMinigames;
     window.showMazeSkinsShop = showMazeSkinsShop;
+    window.loadMazeSkin = loadMazeSkin;
+    window.buyMazeSkin = buyMazeSkin;
+    window.selectMazeSkin = selectMazeSkin;
 }
 

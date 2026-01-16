@@ -531,16 +531,16 @@ function sendFriendRequestFallback(username) {
         document.getElementById('friends-error').textContent = 'Request already sent';
         return;
     }
-    allRequests.push({ from: currentUser.username, to: username, status: 'pending', createdAt: new Date() });
-    localStorage.setItem('allFriendRequests', JSON.stringify(allRequests));
-    document.getElementById('friends-error').textContent = `Friend request sent to ${username}!`;
-    document.getElementById('friend-username-input').value = '';
-}
     
     if (username === currentUser.username) {
         errorDiv.textContent = 'Cannot add yourself!';
         return;
     }
+    
+    allRequests.push({ from: currentUser.username, to: username, status: 'pending', createdAt: new Date() });
+    localStorage.setItem('allFriendRequests', JSON.stringify(allRequests));
+    document.getElementById('friends-error').textContent = `Friend request sent to ${username}!`;
+    document.getElementById('friend-username-input').value = '';
     
     // Create request
     const request = {
