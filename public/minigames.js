@@ -2152,10 +2152,14 @@ function updateTetrisDisplay() {
 function endTetrisGame() {
     const resultDiv = document.getElementById('tetris-result');
     if (resultDiv) {
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${tetrisGame.money} money!</div>`;
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${tetrisGame.charge} minigame charge!</div>`;
     }
     if (typeof addLog === 'function') {
-        addLog(`🧩 Tetris: Score ${tetrisGame.score}, Lines ${tetrisGame.lines}, Earned ${tetrisGame.money} money!`);
+        addLog(`🧩 Tetris: Score ${tetrisGame.score}, Lines ${tetrisGame.lines}, Earned ${tetrisGame.charge} minigame charge!`);
+    }
+    // Add charge to player
+    if (tetrisGame.charge > 0) {
+        addMinigameCharge(tetrisGame.charge);
     }
 }
 
@@ -2165,7 +2169,9 @@ function tetrisGameLoop(time) {
     drawTetrisGame();
     updateTetrisDisplay();
     if (!tetrisGame.gameOver) {
-        requestAnimationFrame(tetrisGameLoop);
+        tetrisGame.gameLoopRunning = requestAnimationFrame(tetrisGameLoop);
+    } else {
+        tetrisGame.gameLoopRunning = null;
     }
 }
 
@@ -2395,7 +2401,9 @@ function pongGameLoop() {
     updatePongGame();
     drawPongGame();
     if (!pongGame.gameOver) {
-        requestAnimationFrame(pongGameLoop);
+        pongGame.gameLoopRunning = requestAnimationFrame(pongGameLoop);
+    } else {
+        pongGame.gameLoopRunning = null;
     }
 }
 
@@ -2447,6 +2455,13 @@ let pacManGame = {
 function startPacManGame() {
     const canvas = document.getElementById('pacman-canvas');
     if (!canvas) return;
+    
+    // Reset game state completely to prevent speed issues
+    if (pacManGame.gameLoopRunning) {
+        cancelAnimationFrame(pacManGame.gameLoopRunning);
+    }
+    document.removeEventListener('keydown', handlePacManKeyDown);
+    
     pacManGame.canvas = canvas;
     pacManGame.ctx = canvas.getContext('2d');
     pacManGame.gameStarted = true;
@@ -2460,6 +2475,7 @@ function startPacManGame() {
     pacManGame.bigOrbs = [];
     pacManGame.ghosts = [];
     pacManGame.walls = [];
+    pacManGame.gameLoopRunning = null;
     
     generatePacManMaze();
     
