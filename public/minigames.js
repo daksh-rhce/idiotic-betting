@@ -84,7 +84,10 @@ function initSlotMachine() {
                 <input type="number" id="slot-bet" min="10" value="50" placeholder="Bet charge amount">
                 <button class="btn btn-large" onclick="spinSlotMachine()">SPIN</button>
             </div>
-            <button class="btn btn-small" onclick="showMinigamesMenu()" style="margin-top: 10px;">← Back to Minigames</button>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('slot')">🎨 Skins</button>
+            </div>
             <div id="slot-result" class="slot-result"></div>
         </div>
     `;
@@ -170,6 +173,10 @@ function initNumberGuessing() {
             <input type="number" id="number-bet" min="10" value="50" placeholder="Bet amount">
             <input type="number" id="number-guess" min="1" max="100" placeholder="Your guess (1-100)">
             <button class="btn btn-large" onclick="playNumberGuessing()">GUESS</button>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('number')">🎨 Skins</button>
+            </div>
             <div id="number-result" class="number-result"></div>
         </div>
     `;
@@ -231,6 +238,10 @@ function initRockPaperScissors() {
                 <button class="btn btn-large" onclick="playRPS('paper')">📄 Paper</button>
                 <button class="btn btn-large" onclick="playRPS('scissors')">✂️ Scissors</button>
             </div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('rps')">🎨 Skins</button>
+            </div>
             <div id="rps-result" class="rps-result"></div>
         </div>
     `;
@@ -286,6 +297,10 @@ function initDiceRoll() {
             <p>Roll higher than the computer!</p>
             <input type="number" id="dice-bet" min="10" value="50" placeholder="Bet amount">
             <button class="btn btn-large" onclick="playDiceRoll()">ROLL DICE</button>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('dice')">🎨 Skins</button>
+            </div>
             <div id="dice-result" class="dice-result"></div>
         </div>
     `;
@@ -335,6 +350,10 @@ function initCardFlip() {
             <p>Pick a card higher than the dealer!</p>
             <input type="number" id="card-bet" min="10" value="50" placeholder="Bet amount">
             <button class="btn btn-large" onclick="playCardFlip()">FLIP CARD</button>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('card')">🎨 Skins</button>
+            </div>
             <div id="card-result" class="card-result"></div>
         </div>
     `;
@@ -393,6 +412,10 @@ function initCoinFlip() {
                 <button class="btn btn-large" onclick="playCoinFlip('heads')">HEADS</button>
                 <button class="btn btn-large" onclick="playCoinFlip('tails')">TAILS</button>
             </div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('coin')">🎨 Skins</button>
+            </div>
             <div id="coin-result" class="coin-result"></div>
         </div>
     `;
@@ -442,6 +465,10 @@ function initMemoryGame() {
         <div class="minigame-memory">
             <h2>🧠 Memory Game</h2>
             <p>Match pairs! Bet: <input type="number" id="memory-bet" min="10" value="50"></p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin: 10px 0;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('memory')">🎨 Skins</button>
+            </div>
             <div class="memory-grid" id="memory-grid"></div>
             <div id="memory-result"></div>
         </div>
@@ -508,6 +535,10 @@ function initBlackjack() {
             <h2>🃏 Blackjack</h2>
             <input type="number" id="bj-bet" min="10" value="50" placeholder="Bet amount">
             <button class="btn btn-large" onclick="startBlackjack()">DEAL</button>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('blackjack')">🎨 Skins</button>
+            </div>
             <div id="bj-result"></div>
         </div>
     `;
@@ -571,6 +602,10 @@ function initColorGuessing() {
                 <button class="btn btn-large" style="background: red;" onclick="playColorGuessing('red')">RED</button>
                 <button class="btn btn-large" style="background: black; color: white;" onclick="playColorGuessing('black')">BLACK</button>
             </div>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('color')">🎨 Skins</button>
+            </div>
             <div id="color-result"></div>
         </div>
     `;
@@ -624,6 +659,10 @@ function initQuickMath() {
             <input type="number" id="math-bet" min="10" value="50" placeholder="Bet amount">
             <input type="number" id="math-answer" placeholder="Your answer">
             <button class="btn btn-large" onclick="playQuickMath()">SUBMIT</button>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
+                <button class="btn btn-small" onclick="showMinigameSkinsShop('math')">🎨 Skins</button>
+            </div>
             <div id="math-result"></div>
         </div>
     `;
