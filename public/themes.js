@@ -117,13 +117,30 @@ function applyThemeStyles(themeName) {
     switch(themeName) {
         case 'poop':
             css = `
-                .btn, button { background: #8B4513 !important; color: #FFD700 !important; }
-                .btn:hover { background: #A0522D !important; }
                 body { background: linear-gradient(135deg, #654321 0%, #3E2723 100%) !important; }
-                h1, h2, h3 { color: #8B4513 !important; }
-                .card, .minigame-card { background: #8B4513 !important; border-color: #654321 !important; }
-                *::before { content: '💩' !important; }
+                .btn, button { 
+                    background: #8B4513 !important; 
+                    color: #FFD700 !important; 
+                    border-color: #654321 !important;
+                }
+                .btn:hover { background: #A0522D !important; }
+                h1, h2, h3, h4, p, span, div { color: #8B4513 !important; }
+                .card, .minigame-card, .property-card, .task-card, .chaos-card { 
+                    background: #8B4513 !important; 
+                    border-color: #654321 !important;
+                }
+                .screen { background: linear-gradient(135deg, #654321 0%, #3E2723 100%) !important; }
             `;
+            // Apply poop emoji to all text elements
+            setTimeout(() => {
+                document.querySelectorAll('h1, h2, h3, button, .btn').forEach(el => {
+                    if (!el.dataset.poopApplied) {
+                        el.dataset.poopApplied = 'true';
+                        const originalText = el.textContent;
+                        el.textContent = '💩 ' + originalText.replace(/💩/g, '') + ' 💩';
+                    }
+                });
+            }, 100);
             break;
         case 'space':
             css = `
@@ -162,10 +179,32 @@ function applyThemeStyles(themeName) {
             break;
         case 'cookie':
             css = `
-                body { background: #D2691E !important; }
-                .btn, button { background: #8B4513 !important; color: #FFD700 !important; }
-                .card { background: #DEB887 !important; border-color: #8B4513 !important; }
+                body { 
+                    background: linear-gradient(135deg, #D2691E 0%, #8B4513 100%) !important;
+                    background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(139, 69, 19, 0.1) 10px, rgba(139, 69, 19, 0.1) 20px) !important;
+                }
+                .btn, button { 
+                    background: #8B4513 !important; 
+                    color: #FFD700 !important; 
+                    border-color: #654321 !important;
+                }
+                h1, h2, h3, h4, p, span, div { color: #8B4513 !important; }
+                .card, .minigame-card, .property-card, .task-card, .chaos-card { 
+                    background: #DEB887 !important; 
+                    border-color: #8B4513 !important;
+                }
+                .screen { background: linear-gradient(135deg, #D2691E 0%, #8B4513 100%) !important; }
             `;
+            // Apply cookie emoji
+            setTimeout(() => {
+                document.querySelectorAll('h1, h2, h3, button, .btn').forEach(el => {
+                    if (!el.dataset.cookieApplied) {
+                        el.dataset.cookieApplied = 'true';
+                        const originalText = el.textContent;
+                        el.textContent = '🍪 ' + originalText.replace(/🍪/g, '') + ' 🍪';
+                    }
+                });
+            }, 100);
             break;
         case 'error':
             css = `
@@ -173,7 +212,7 @@ function applyThemeStyles(themeName) {
                     background: #000 !important;
                     background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 0, 0.03) 2px, rgba(0, 255, 0, 0.03) 4px) !important;
                 }
-                .btn, button, h1, h2, h3, * {
+                .btn, button, h1, h2, h3, h4, p, span, div, * {
                     color: #00FF00 !important;
                     text-shadow: 2px 0 0 #FF0000, -2px 0 0 #00FFFF !important;
                     font-family: 'Courier New', monospace !important;
@@ -183,14 +222,49 @@ function applyThemeStyles(themeName) {
                     border: 2px solid #00FF00 !important;
                     box-shadow: 2px 0 0 #FF0000, -2px 0 0 #00FFFF !important;
                 }
+                .card, .minigame-card, .property-card, .task-card, .chaos-card {
+                    background: #000 !important;
+                    border: 2px solid #00FF00 !important;
+                    box-shadow: 2px 0 0 #FF0000, -2px 0 0 #00FFFF !important;
+                }
+                .screen { background: #000 !important; }
             `;
+            // Apply ERROR text to all elements
+            setTimeout(() => {
+                document.querySelectorAll('h1, h2, h3, button, .btn, .card').forEach(el => {
+                    if (!el.dataset.errorApplied) {
+                        el.dataset.errorApplied = 'true';
+                        const originalText = el.textContent;
+                        el.textContent = 'ERROR: ' + originalText.replace(/ERROR:/g, '') + ' ERROR';
+                    }
+                });
+            }, 100);
             break;
         case 'ishowspeed':
             css = `
                 body { background: #000 !important; }
-                .btn, button { background: #FF0000 !important; color: #FFF !important; }
-                h1, h2, h3 { color: #FF0000 !important; }
+                .btn, button { 
+                    background: #FF0000 !important; 
+                    color: #FFF !important; 
+                    border-color: #CC0000 !important;
+                }
+                h1, h2, h3, h4, p, span, div { color: #FF0000 !important; }
+                .card, .minigame-card, .property-card, .task-card, .chaos-card { 
+                    background: #1a0000 !important; 
+                    border-color: #FF0000 !important;
+                }
+                .screen { background: #000 !important; }
             `;
+            // Apply iShowSpeed styling
+            setTimeout(() => {
+                document.querySelectorAll('h1, h2, h3, button, .btn').forEach(el => {
+                    if (!el.dataset.speedApplied) {
+                        el.dataset.speedApplied = 'true';
+                        const originalText = el.textContent;
+                        el.textContent = '⚡ ' + originalText + ' ⚡';
+                    }
+                });
+            }, 100);
             break;
     }
     
