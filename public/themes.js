@@ -497,14 +497,20 @@ if (typeof window !== 'undefined') {
 
 // Load theme on page load
 if (typeof window !== 'undefined') {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => {
-            loadGameThemes();
-            applyGameTheme(currentGameTheme);
-        });
-    } else {
+    function initializeTheme() {
+        // Clear any previous theme modifications first
+        clearThemeTextModifications();
         loadGameThemes();
-        applyGameTheme(currentGameTheme);
+        // Apply theme after a brief delay to ensure DOM is ready
+        setTimeout(() => {
+            applyGameTheme(currentGameTheme);
+        }, 100);
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeTheme);
+    } else {
+        initializeTheme();
     }
 }
 
