@@ -2370,35 +2370,164 @@ function startPacManGame() {
     pacManGame.gameStarted = true;
     pacManGame.gameOver = false;
     pacManGame.score = 0;
-    pacManGame.money = 0;
+    pacManGame.charge = 0;
     pacManGame.lives = 3;
+    pacManGame.level = 1;
     pacManGame.player = { x: 50, y: 50, size: 20, direction: 'right', nextDirection: 'right' };
     pacManGame.dots = [];
+    pacManGame.bigOrbs = [];
     pacManGame.ghosts = [];
+    pacManGame.walls = [];
     
-    // Generate dots
-    for (let y = 30; y < canvas.height - 30; y += 30) {
-        for (let x = 30; x < canvas.width - 30; x += 30) {
-            if (Math.random() > 0.3) { // 70% chance of dot
+    generatePacManMaze();
+    
+    document.addEventListener('keydown', handlePacManKeyDown);
+    pacManGameLoop();
+}
+
+function generatePacManMaze() {
+    const canvas = pacManGame.canvas;
+    const cols = Math.floor(canvas.width / pacManGame.cellSize);
+    const rows = Math.floor(canvas.height / pacManGame.cellSize);
+    
+    // Generate maze using recursive backtracking
+    const maze = generatePacManMazeAlgorithm(cols, rows);
+    
+    // Convert maze to walls
+    pacManGame.walls = [];
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            const cell = maze[y][x];
+            if (cell.walls.top) {
+                pacManGame.walls.push({ x: x * pacManGame.cellSize, y: y * pacManGame.cellSize, width: pacManGame.cellSize, height: 2 });
+            }
+            if (cell.walls.left) {
+                pacManGame.walls.push({ x: x * pacManGame.cellSize, y: y * pacManGame.cellSize, width: 2, height: pacManGame.cellSize });
+            }
+            if (cell.walls.bottom) {
+                pacManGame.walls.push({ x: x * pacManGame.cellSize, y: (y + 1) * pacManGame.cellSize - 2, width: pacManGame.cellSize, height: 2 });
+            }
+            if (cell.walls.right) {
+                pacManGame.walls.push({ x: (x + 1) * pacManGame.cellSize - 2, y: y * pacManGame.cellSize, width: 2, height: pacManGame.cellSize });
+            }
+        }
+    }
+    
+    // Add outer walls
+    pacManGame.walls.push({ x: 0, y: 0, width: canvas.width, height: 2 });
+    pacManGame.walls.push({ x: 0, y: 0, width: 2, height: canvas.height });
+    pacManGame.walls.push({ x: canvas.width - 2, y: 0, width: 2, height: canvas.height });
+    pacManGame.walls.push({ x: 0, y: canvas.height - 2, width: canvas.width, height: 2 });
+    
+    // Place dots in all walkable areas (not in walls)
+    pacManGame.dots = [];
+    for (let y = pacManGame.cellSize; y < canvas.height - pacManGame.cellSize; y += pacManGame.cellSize) {
+        for (let x = pacManGame.cellSize; x < canvas.width - pacManGame.cellSize; x += pacManGame.cellSize) {
+            // Check if position is not in a wall
+            const inWall = pacManGame.walls.some(wall => 
+                x >= wall.x && x < wall.x + wall.width &&
+                y >= wall.y && y < wall.y + wall.height
+            );
+            if (!inWall) {
                 pacManGame.dots.push({ x, y, collected: false });
             }
         }
     }
     
-    // Generate ghosts
-    for (let i = 0; i < 3; i++) {
+    // Place big orbs rarely (5% chance)
+    pacManGame.bigOrbs = [];
+    pacManGame.dots.forEach(dot => {
+        if (!dot.collected && Math.random() < 0.05) {
+            pacManGame.bigOrbs.push({ x: dot.x, y: dot.y, collected: false });
+            dot.collected = true; // Replace dot with big orb
+        }
+    });
+    
+    // Generate ghosts based on level
+    const numGhosts = 3 + (pacManGame.level - 1);
+    pacManGame.ghosts = [];
+    for (let i = 0; i < numGhosts; i++) {
+        // Find a valid spawn position (not in wall, not on player)
+        let spawnX, spawnY;
+        let attempts = 0;
+        do {
+            spawnX = Math.floor(Math.random() * (cols - 2) + 1) * pacManGame.cellSize;
+            spawnY = Math.floor(Math.random() * (rows - 2) + 1) * pacManGame.cellSize;
+            attempts++;
+        } while (attempts < 50 && (
+            pacManGame.walls.some(w => spawnX >= w.x && spawnX < w.x + w.width && spawnY >= w.y && spawnY < w.y + w.height) ||
+            (spawnX === pacManGame.player.x && spawnY === pacManGame.player.y)
+        ));
+        
         pacManGame.ghosts.push({
-            x: Math.random() * (canvas.width - 40) + 20,
-            y: Math.random() * (canvas.height - 40) + 20,
+            x: spawnX,
+            y: spawnY,
             size: 20,
-            dx: (Math.random() > 0.5 ? 1 : -1) * 2,
-            dy: (Math.random() > 0.5 ? 1 : -1) * 2,
-            color: ['#FF0000', '#00FFFF', '#FFFF00'][i]
+            direction: ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)],
+            color: ['#FF0000', '#00FFFF', '#FFFF00', '#FF00FF', '#00FF00'][i % 5],
+            targetX: spawnX,
+            targetY: spawnY
         });
     }
     
-    document.addEventListener('keydown', handlePacManKeyDown);
-    pacManGameLoop();
+    // Place player at start
+    pacManGame.player.x = pacManGame.cellSize + 10;
+    pacManGame.player.y = pacManGame.cellSize + 10;
+}
+
+function generatePacManMazeAlgorithm(cols, rows) {
+    const maze = [];
+    for (let y = 0; y < rows; y++) {
+        maze[y] = [];
+        for (let x = 0; x < cols; x++) {
+            maze[y][x] = {
+                walls: { top: true, right: true, bottom: true, left: true },
+                visited: false
+            };
+        }
+    }
+    
+    const stack = [];
+    let current = { x: 0, y: 0 };
+    maze[current.y][current.x].visited = true;
+    
+    while (true) {
+        const neighbors = [];
+        const { x, y } = current;
+        
+        if (y > 0 && !maze[y - 1][x].visited) neighbors.push({ x, y: y - 1, dir: 'top' });
+        if (x < cols - 1 && !maze[y][x + 1].visited) neighbors.push({ x: x + 1, y, dir: 'right' });
+        if (y < rows - 1 && !maze[y + 1][x].visited) neighbors.push({ x, y: y + 1, dir: 'bottom' });
+        if (x > 0 && !maze[y][x - 1].visited) neighbors.push({ x: x - 1, y, dir: 'left' });
+        
+        if (neighbors.length > 0) {
+            const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+            stack.push(current);
+            
+            if (next.dir === 'top') {
+                maze[y][x].walls.top = false;
+                maze[y - 1][x].walls.bottom = false;
+            } else if (next.dir === 'right') {
+                maze[y][x].walls.right = false;
+                maze[y][x + 1].walls.left = false;
+            } else if (next.dir === 'bottom') {
+                maze[y][x].walls.bottom = false;
+                maze[y + 1][x].walls.top = false;
+            } else if (next.dir === 'left') {
+                maze[y][x].walls.left = false;
+                maze[y][x - 1].walls.right = false;
+            }
+            
+            current = { x: next.x, y: next.y };
+            maze[current.y][current.x].visited = true;
+        } else if (stack.length > 0) {
+            current = stack.pop();
+        } else {
+            break;
+        }
+    }
+    
+    return maze;
 }
 
 function handlePacManKeyDown(e) {
@@ -2583,6 +2712,12 @@ function drawPacManGame() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, pacManGame.canvas.width, pacManGame.canvas.height);
     
+    // Draw walls
+    ctx.fillStyle = '#0000FF';
+    pacManGame.walls.forEach(wall => {
+        ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+    });
+    
     // Draw dots
     ctx.fillStyle = '#FFD700';
     pacManGame.dots.forEach(dot => {
@@ -2590,6 +2725,19 @@ function drawPacManGame() {
             ctx.beginPath();
             ctx.arc(dot.x, dot.y, 3, 0, Math.PI * 2);
             ctx.fill();
+        }
+    });
+    
+    // Draw big orbs
+    ctx.fillStyle = '#FFFFFF';
+    pacManGame.bigOrbs.forEach(orb => {
+        if (!orb.collected) {
+            ctx.beginPath();
+            ctx.arc(orb.x, orb.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         }
     });
     
@@ -2623,7 +2771,7 @@ function drawPacManGame() {
         ctx.font = 'bold 30px Arial';
         ctx.textAlign = 'center';
         ctx.fillText('Game Over!', pacManGame.canvas.width / 2, pacManGame.canvas.height / 2);
-        ctx.fillText(`Money: ${pacManGame.money}`, pacManGame.canvas.width / 2, pacManGame.canvas.height / 2 + 40);
+        ctx.fillText(`Charge Earned: ${Math.round(pacManGame.charge)}`, pacManGame.canvas.width / 2, pacManGame.canvas.height / 2 + 40);
     }
 }
 
