@@ -991,7 +991,7 @@ function initMazeGame() {
                 <canvas id="maze-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
             </div>
             <div id="maze-score" style="color: #FFD700; font-weight: bold; font-size: 1.2em; margin: 10px 0;">
-                Money Collected: <span id="maze-money-count">0</span>
+                Charge Collected: <span id="maze-money-count">0</span>
             </div>
             <button class="btn btn-large" onclick="startMazeGame()">Start Game</button>
             <div id="maze-result"></div>
@@ -1021,12 +1021,20 @@ let mazeGame = {
     gameStarted: false,
     gameOver: false,
     keys: {},
-    exit: null
+    exit: null,
+    gameLoopRunning: null
 };
 
 function startMazeGame() {
     const canvas = document.getElementById('maze-canvas');
     if (!canvas) return;
+    
+    // Reset game state completely to prevent speed issues
+    if (mazeGame.gameLoopRunning) {
+        cancelAnimationFrame(mazeGame.gameLoopRunning);
+    }
+    document.removeEventListener('keydown', handleMazeKeyDown);
+    document.removeEventListener('keyup', handleMazeKeyUp);
     
     mazeGame.canvas = canvas;
     mazeGame.ctx = canvas.getContext('2d');
@@ -1037,6 +1045,7 @@ function startMazeGame() {
     mazeGame.totalMoney = 0;
     mazeGame.collectedKeys = { red: 0, blue: 0, green: 0, yellow: 0 };
     mazeGame.keys = {};
+    mazeGame.gameLoopRunning = null;
     
     // Load selected skin
     loadMazeSkin();
@@ -1515,10 +1524,11 @@ let snakeGame = {
     direction: { x: 10, y: 0 },
     food: null,
     score: 0,
-    money: 0,
+    charge: 0, // Changed from money to charge
     gameStarted: false,
     gameOver: false,
-    gridSize: 10
+    gridSize: 10,
+    gameLoopTimeout: null
 };
 
 function startSnakeGame() {
@@ -1531,7 +1541,8 @@ function startSnakeGame() {
     snakeGame.snake = [{ x: 200, y: 200 }];
     snakeGame.direction = { x: 10, y: 0 };
     snakeGame.score = 0;
-    snakeGame.money = 0;
+    snakeGame.charge = 0; // Changed from money to charge
+    snakeGame.gameLoopTimeout = null;
     generateSnakeFood();
     document.addEventListener('keydown', handleSnakeKeyDown);
     snakeGameLoop();
@@ -1585,8 +1596,7 @@ function updateSnakeGame() {
     // Check food
     if (head.x === snakeGame.food.x && head.y === snakeGame.food.y) {
         snakeGame.score++;
-        snakeGame.money += 5;
-        // Give 5 charge per food eaten
+        snakeGame.charge += 5; // 5 charge per food eaten
         addMinigameCharge(5);
         generateSnakeFood();
         updateSnakeDisplay();
@@ -1623,26 +1633,26 @@ function drawSnakeGame() {
         ctx.textAlign = 'center';
         ctx.fillText('Game Over!', snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 - 20);
         ctx.fillText(`Score: ${snakeGame.score}`, snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 + 10);
-        ctx.fillText(`Charge Earned: ${snakeGame.money}`, snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 + 40);
+        ctx.fillText(`Charge Earned: ${snakeGame.charge}`, snakeGame.canvas.width / 2, snakeGame.canvas.height / 2 + 40);
     }
 }
 
 function updateSnakeDisplay() {
     const scoreEl = document.getElementById('snake-score');
-    const moneyEl = document.getElementById('snake-money');
+    const chargeEl = document.getElementById('snake-money'); // Keep ID for compatibility
     const chargeDisplay = document.getElementById('snake-charge-display');
     if (scoreEl) scoreEl.textContent = snakeGame.score;
-    if (moneyEl) moneyEl.textContent = snakeGame.money;
+    if (chargeEl) chargeEl.textContent = snakeGame.charge; // Changed from money to charge
     if (chargeDisplay) chargeDisplay.textContent = minigamesState.minigameCharge;
 }
 
 function endSnakeGame() {
     const resultDiv = document.getElementById('snake-result');
     if (resultDiv) {
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${snakeGame.money} charge! (Total Charge: ${minigamesState.minigameCharge})</div>`;
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${snakeGame.charge} charge! (Total Charge: ${minigamesState.minigameCharge})</div>`;
     }
     if (typeof addLog === 'function') {
-        addLog(`🐍 Snake Game: Score ${snakeGame.score}, Earned ${snakeGame.money} charge! (Total: ${minigamesState.minigameCharge})`);
+        addLog(`🐍 Snake Game: Score ${snakeGame.score}, Earned ${snakeGame.charge} charge! (Total: ${minigamesState.minigameCharge})`);
     }
 }
 
@@ -1652,7 +1662,9 @@ function snakeGameLoop() {
     drawSnakeGame();
     updateSnakeDisplay();
     if (!snakeGame.gameOver) {
-        setTimeout(() => snakeGameLoop(), 150);
+        snakeGame.gameLoopTimeout = setTimeout(() => snakeGameLoop(), 150);
+    } else {
+        snakeGame.gameLoopTimeout = null;
     }
 }
 
@@ -1687,26 +1699,34 @@ let breakoutGame = {
     ball: { x: 300, y: 360, radius: 8, dx: 3, dy: -3 },
     blocks: [],
     score: 0,
-    money: 0,
+    charge: 0, // Changed from money to charge
     lives: 3,
     gameStarted: false,
     gameOver: false,
-    keys: {}
+    keys: {},
+    gameLoopRunning: null
 };
 
 function startBreakoutGame() {
     const canvas = document.getElementById('breakout-canvas');
     if (!canvas) return;
+    
+    // Reset game state completely to prevent speed issues
+    if (breakoutGame.gameLoopRunning) {
+        cancelAnimationFrame(breakoutGame.gameLoopRunning);
+    }
+    
     breakoutGame.canvas = canvas;
     breakoutGame.ctx = canvas.getContext('2d');
     breakoutGame.gameStarted = true;
     breakoutGame.gameOver = false;
     breakoutGame.score = 0;
-    breakoutGame.money = 0;
+    breakoutGame.charge = 0; // Changed from money to charge
     breakoutGame.lives = 3;
     breakoutGame.paddle = { x: 250, y: 380, width: 100, height: 10 };
-    breakoutGame.ball = { x: 300, y: 360, radius: 8, dx: 3, dy: -3 };
+    breakoutGame.ball = { x: 300, y: 360, radius: 8, dx: 3, dy: -3 }; // Reset ball speed
     breakoutGame.blocks = [];
+    breakoutGame.gameLoopRunning = null;
     
     // Create blocks
     for (let row = 0; row < 5; row++) {
@@ -1778,7 +1798,7 @@ function updateBreakoutGame() {
             breakoutGame.ball.y - breakoutGame.ball.radius <= block.y + block.height) {
             block.broken = true;
             breakoutGame.score += 10;
-            // Each block gives 1 minigame charge
+            breakoutGame.charge += 1; // Each block gives 1 minigame charge
             addMinigameCharge(1);
             breakoutGame.ball.dy = -breakoutGame.ball.dy;
             updateBreakoutDisplay();
@@ -1843,20 +1863,24 @@ function drawBreakoutGame() {
 
 function updateBreakoutDisplay() {
     const scoreEl = document.getElementById('breakout-score');
-    const moneyEl = document.getElementById('breakout-money');
+    const chargeEl = document.getElementById('breakout-money'); // Keep ID for compatibility
     const livesEl = document.getElementById('breakout-lives');
     if (scoreEl) scoreEl.textContent = breakoutGame.score;
-    if (moneyEl) moneyEl.textContent = breakoutGame.money;
+    if (chargeEl) chargeEl.textContent = breakoutGame.charge; // Changed from money to charge
     if (livesEl) livesEl.textContent = breakoutGame.lives;
 }
 
 function endBreakoutGame() {
     const resultDiv = document.getElementById('breakout-result');
     if (resultDiv) {
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${breakoutGame.money} money!</div>`;
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${breakoutGame.charge} minigame charge!</div>`;
     }
     if (typeof addLog === 'function') {
-        addLog(`🎾 Breakout: Score ${breakoutGame.score}, Earned ${breakoutGame.money} money!`);
+        addLog(`🎾 Breakout: Score ${breakoutGame.score}, Earned ${breakoutGame.charge} minigame charge!`);
+    }
+    // Add charge to player
+    if (breakoutGame.charge > 0) {
+        addMinigameCharge(breakoutGame.charge);
     }
 }
 
@@ -1876,12 +1900,12 @@ function initTetrisGame() {
     container.innerHTML = `
         <div class="minigame-tetris">
             <h2>🧩 Tetris</h2>
-            <p>Arrow Keys: Left/Right to move, Down to drop, Up to rotate. Clear lines for money! Each line = 50 money!</p>
+            <p>Arrow Keys: Left/Right to move, Down to drop, Up to rotate. Clear lines for charge! Each line = 15 charge!</p>
             <div id="tetris-canvas-container" style="text-align: center; margin: 20px 0;">
                 <canvas id="tetris-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
             </div>
             <div id="tetris-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
-                Score: <span id="tetris-score">0</span> | Money: <span id="tetris-money">0</span> | Lines: <span id="tetris-lines">0</span>
+                Score: <span id="tetris-score">0</span> | Charge: <span id="tetris-charge">0</span> | Lines: <span id="tetris-lines">0</span>
             </div>
             <button class="btn btn-large" onclick="startTetrisGame()">Start Game</button>
             <div id="tetris-result"></div>
@@ -1901,7 +1925,7 @@ let tetrisGame = {
     currentPiece: null,
     nextPiece: null,
     score: 0,
-    money: 0,
+    charge: 0, // Changed from money to charge
     lines: 0,
     gameStarted: false,
     gameOver: false,
@@ -1909,7 +1933,8 @@ let tetrisGame = {
     lastTime: 0,
     gridWidth: 10,
     gridHeight: 20,
-    blockSize: 30
+    blockSize: 30,
+    gameLoopRunning: null
 };
 
 const tetrisPieces = [
@@ -1925,13 +1950,21 @@ const tetrisPieces = [
 function startTetrisGame() {
     const canvas = document.getElementById('tetris-canvas');
     if (!canvas) return;
+    
+    // Reset game state completely to prevent speed issues
+    if (tetrisGame.gameLoopRunning) {
+        cancelAnimationFrame(tetrisGame.gameLoopRunning);
+    }
+    document.removeEventListener('keydown', handleTetrisKeyDown);
+    
     tetrisGame.canvas = canvas;
     tetrisGame.ctx = canvas.getContext('2d');
     tetrisGame.gameStarted = true;
     tetrisGame.gameOver = false;
     tetrisGame.score = 0;
-    tetrisGame.money = 0;
+    tetrisGame.charge = 0; // Changed from money to charge
     tetrisGame.lines = 0;
+    tetrisGame.gameLoopRunning = null;
     
     // Initialize grid
     tetrisGame.grid = Array(tetrisGame.gridHeight).fill().map(() => Array(tetrisGame.gridWidth).fill(0));
@@ -1939,6 +1972,7 @@ function startTetrisGame() {
     spawnTetrisPiece();
     document.addEventListener('keydown', handleTetrisKeyDown);
     tetrisGame.lastTime = performance.now();
+    tetrisGame.dropTime = 0;
     tetrisGameLoop();
 }
 
@@ -2036,7 +2070,7 @@ function clearTetrisLines() {
     if (linesCleared > 0) {
         tetrisGame.lines += linesCleared;
         tetrisGame.score += linesCleared * 100;
-        // Each line cleared gives 15 minigame charge
+        tetrisGame.charge += linesCleared * 15; // Each line cleared gives 15 minigame charge
         addMinigameCharge(linesCleared * 15);
         updateTetrisDisplay();
     }
@@ -2102,16 +2136,16 @@ function drawTetrisGame() {
         ctx.font = 'bold 30px Arial';
         ctx.textAlign = 'center';
         ctx.fillText('Game Over!', tetrisGame.canvas.width / 2, tetrisGame.canvas.height / 2);
-        ctx.fillText(`Money: ${tetrisGame.money}`, tetrisGame.canvas.width / 2, tetrisGame.canvas.height / 2 + 40);
+        ctx.fillText(`Charge: ${tetrisGame.charge}`, tetrisGame.canvas.width / 2, tetrisGame.canvas.height / 2 + 40);
     }
 }
 
 function updateTetrisDisplay() {
     const scoreEl = document.getElementById('tetris-score');
-    const moneyEl = document.getElementById('tetris-money');
+    const chargeEl = document.getElementById('tetris-charge');
     const linesEl = document.getElementById('tetris-lines');
     if (scoreEl) scoreEl.textContent = tetrisGame.score;
-    if (moneyEl) moneyEl.textContent = tetrisGame.money;
+    if (chargeEl) chargeEl.textContent = tetrisGame.charge; // Changed from money to charge
     if (linesEl) linesEl.textContent = tetrisGame.lines;
 }
 
@@ -2141,12 +2175,12 @@ function initPongGame() {
     container.innerHTML = `
         <div class="minigame-pong">
             <h2>🏓 Pong</h2>
-            <p>Use W/S or Arrow Up/Down to move paddle! Score points for money. Each point = 20 money!</p>
+            <p>Use W/S or Arrow Up/Down to move paddle! Score points for charge. Each point = 5 charge!</p>
             <div id="pong-canvas-container" style="text-align: center; margin: 20px 0;">
                 <canvas id="pong-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
             </div>
             <div id="pong-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
-                Player: <span id="pong-player-score">0</span> | AI: <span id="pong-ai-score">0</span> | Money: <span id="pong-money">0</span>
+                Player: <span id="pong-player-score">0</span> | AI: <span id="pong-ai-score">0</span> | Charge: <span id="pong-charge">0</span>
             </div>
             <button class="btn btn-large" onclick="startPongGame()">Start Game</button>
             <div id="pong-result"></div>
@@ -2167,16 +2201,21 @@ let pongGame = {
     ball: { x: 400, y: 200, radius: 10, dx: 4, dy: 4 },
     playerScore: 0,
     aiScore: 0,
-    money: 0,
+    charge: 0, // Changed from money to charge
     gameStarted: false,
     gameOver: false,
-    keys: {}
+    keys: {},
+    gameLoopRunning: null
 };
 
 function startPongGame() {
     const canvas = document.getElementById('pong-canvas');
     if (!canvas) return;
-    // Remove old event listeners to prevent speed increase
+    
+    // Reset game state completely to prevent speed increase
+    if (pongGame.gameLoopRunning) {
+        cancelAnimationFrame(pongGame.gameLoopRunning);
+    }
     document.removeEventListener('keydown', handlePongKeyDown);
     document.removeEventListener('keyup', handlePongKeyUp);
     
@@ -2186,11 +2225,12 @@ function startPongGame() {
     pongGame.gameOver = false;
     pongGame.playerScore = 0;
     pongGame.aiScore = 0;
-    pongGame.money = 0;
+    pongGame.charge = 0; // Changed from money to charge
     pongGame.playerPaddle = { x: 20, y: 150, width: 10, height: 100, speed: 5 };
     pongGame.aiPaddle = { x: 770, y: 150, width: 10, height: 100, speed: 3 };
-    pongGame.ball = { x: 400, y: 200, radius: 10, dx: 4, dy: 4 };
+    pongGame.ball = { x: 400, y: 200, radius: 10, dx: 4, dy: 4 }; // Reset ball speed
     pongGame.keys = {};
+    pongGame.gameLoopRunning = null;
     document.addEventListener('keydown', handlePongKeyDown);
     document.addEventListener('keyup', handlePongKeyUp);
     pongGameLoop();
@@ -2257,7 +2297,7 @@ function updatePongGame() {
         resetPongBall();
     } else if (pongGame.ball.x > pongGame.canvas.width) {
         pongGame.playerScore++;
-        // Each point is now 5 minigame charge
+        pongGame.charge += 5; // Each point is now 5 minigame charge
         addMinigameCharge(5);
         resetPongBall();
     }
@@ -2323,26 +2363,30 @@ function drawPongGame() {
         ctx.font = 'bold 40px Arial';
         ctx.fillText(pongGame.playerScore >= 10 ? 'You Win!' : 'AI Wins!', pongGame.canvas.width / 2, pongGame.canvas.height / 2);
         ctx.font = 'bold 24px Arial';
-        ctx.fillText(`Money Earned: ${pongGame.money}`, pongGame.canvas.width / 2, pongGame.canvas.height / 2 + 50);
+        ctx.fillText(`Charge Earned: ${pongGame.charge}`, pongGame.canvas.width / 2, pongGame.canvas.height / 2 + 50);
     }
 }
 
 function updatePongDisplay() {
     const playerScoreEl = document.getElementById('pong-player-score');
     const aiScoreEl = document.getElementById('pong-ai-score');
-    const moneyEl = document.getElementById('pong-money');
+    const chargeEl = document.getElementById('pong-charge');
     if (playerScoreEl) playerScoreEl.textContent = pongGame.playerScore;
     if (aiScoreEl) aiScoreEl.textContent = pongGame.aiScore;
-    if (moneyEl) moneyEl.textContent = pongGame.money;
+    if (chargeEl) chargeEl.textContent = pongGame.charge; // Changed from money to charge
 }
 
 function endPongGame() {
     const resultDiv = document.getElementById('pong-result');
     if (resultDiv) {
-        resultDiv.innerHTML = `<div style="color: ${pongGame.playerScore >= 10 ? '#00ff00' : '#ff0000'}; font-weight: bold; font-size: 1.5em;">${pongGame.playerScore >= 10 ? 'You Win!' : 'AI Wins!'} Earned ${pongGame.money} money!</div>`;
+        resultDiv.innerHTML = `<div style="color: ${pongGame.playerScore >= 10 ? '#00ff00' : '#ff0000'}; font-weight: bold; font-size: 1.5em;">${pongGame.playerScore >= 10 ? 'You Win!' : 'AI Wins!'} Earned ${pongGame.charge} minigame charge!</div>`;
     }
     if (typeof addLog === 'function') {
-        addLog(`🏓 Pong: Final Score ${pongGame.playerScore}-${pongGame.aiScore}, Earned ${pongGame.money} money!`);
+        addLog(`🏓 Pong: Final Score ${pongGame.playerScore}-${pongGame.aiScore}, Earned ${pongGame.charge} minigame charge!`);
+    }
+    // Add charge to player
+    if (pongGame.charge > 0) {
+        addMinigameCharge(pongGame.charge);
     }
 }
 
@@ -2396,7 +2440,8 @@ let pacManGame = {
     gameOver: false,
     keys: {},
     gridSize: 20,
-    cellSize: 20
+    cellSize: 20,
+    gameLoopRunning: null
 };
 
 function startPacManGame() {
@@ -2842,7 +2887,9 @@ function pacManGameLoop() {
     drawPacManGame();
     updatePacManDisplay();
     if (!pacManGame.gameOver) {
-        requestAnimationFrame(pacManGameLoop);
+        pacManGame.gameLoopRunning = requestAnimationFrame(pacManGameLoop);
+    } else {
+        pacManGame.gameLoopRunning = null;
     }
 }
 
@@ -2878,28 +2925,39 @@ let spaceInvadersGame = {
     aliens: [],
     alienBullets: [],
     score: 0,
-    money: 0,
+    charge: 0, // Changed from money to charge
     lives: 3,
     gameStarted: false,
     gameOver: false,
     keys: {},
-    lastShot: 0
+    lastShot: 0,
+    gameLoopRunning: null
 };
 
 function startSpaceInvadersGame() {
     const canvas = document.getElementById('space-invaders-canvas');
     if (!canvas) return;
+    
+    // Reset game state completely to prevent speed issues
+    if (spaceInvadersGame.gameLoopRunning) {
+        cancelAnimationFrame(spaceInvadersGame.gameLoopRunning);
+    }
+    document.removeEventListener('keydown', handleSpaceInvadersKeyDown);
+    document.removeEventListener('keyup', handleSpaceInvadersKeyUp);
+    
     spaceInvadersGame.canvas = canvas;
     spaceInvadersGame.ctx = canvas.getContext('2d');
     spaceInvadersGame.gameStarted = true;
     spaceInvadersGame.gameOver = false;
     spaceInvadersGame.score = 0;
-    spaceInvadersGame.money = 0;
+    spaceInvadersGame.charge = 0; // Changed from money to charge
     spaceInvadersGame.lives = 3;
     spaceInvadersGame.player = { x: 300, y: 450, width: 25, height: 20, speed: 5 }; // Half width
     spaceInvadersGame.bullets = [];
     spaceInvadersGame.alienBullets = [];
     spaceInvadersGame.aliens = [];
+    spaceInvadersGame.keys = {};
+    spaceInvadersGame.lastShot = 0;
     
     // Create aliens grid
     for (let row = 0; row < 4; row++) {
@@ -2971,8 +3029,7 @@ function updateSpaceInvadersGame() {
                     alien.destroyed = true;
                     spaceInvadersGame.bullets.splice(index, 1);
                     spaceInvadersGame.score += 100;
-                    // Each alien shot down is worth 1 charge
-                    addMinigameCharge(1);
+                    spaceInvadersGame.charge += 1; // 1 charge per alien
                     updateSpaceInvadersDisplay();
                 }
             });
@@ -3042,11 +3099,10 @@ function updateSpaceInvadersGame() {
     // Win condition
     if (spaceInvadersGame.aliens.every(a => a.destroyed)) {
         spaceInvadersGame.gameOver = true;
-        const bonus = 200;
-        spaceInvadersGame.money += bonus;
-        const player = getMinigamePlayer();
-        if (player) player.money += bonus;
-        updateMinigameDisplay();
+        // Add charge earned
+        if (spaceInvadersGame.charge > 0) {
+            addMinigameCharge(spaceInvadersGame.charge);
+        }
         endSpaceInvadersGame();
     }
 }
@@ -3100,26 +3156,30 @@ function drawSpaceInvadersGame() {
         ctx.font = 'bold 30px Arial';
         ctx.textAlign = 'center';
         ctx.fillText('Game Over!', spaceInvadersGame.canvas.width / 2, spaceInvadersGame.canvas.height / 2);
-        ctx.fillText(`Money: ${spaceInvadersGame.money}`, spaceInvadersGame.canvas.width / 2, spaceInvadersGame.canvas.height / 2 + 40);
+        ctx.fillText(`Charge: ${spaceInvadersGame.charge}`, spaceInvadersGame.canvas.width / 2, spaceInvadersGame.canvas.height / 2 + 40);
     }
 }
 
 function updateSpaceInvadersDisplay() {
     const scoreEl = document.getElementById('space-invaders-score');
-    const moneyEl = document.getElementById('space-invaders-money');
+    const chargeEl = document.getElementById('space-invaders-charge');
     const livesEl = document.getElementById('space-invaders-lives');
     if (scoreEl) scoreEl.textContent = spaceInvadersGame.score;
-    if (moneyEl) moneyEl.textContent = spaceInvadersGame.money;
+    if (chargeEl) chargeEl.textContent = spaceInvadersGame.charge;
     if (livesEl) livesEl.textContent = spaceInvadersGame.lives;
 }
 
 function endSpaceInvadersGame() {
     const resultDiv = document.getElementById('space-invaders-result');
     if (resultDiv) {
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${spaceInvadersGame.money} money!</div>`;
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${spaceInvadersGame.charge} minigame charge!</div>`;
     }
     if (typeof addLog === 'function') {
-        addLog(`👾 Space Invaders: Score ${spaceInvadersGame.score}, Earned ${spaceInvadersGame.money} money!`);
+        addLog(`👾 Space Invaders: Score ${spaceInvadersGame.score}, Earned ${spaceInvadersGame.charge} minigame charge!`);
+    }
+    // Add charge to player
+    if (spaceInvadersGame.charge > 0) {
+        addMinigameCharge(spaceInvadersGame.charge);
     }
 }
 
@@ -3372,6 +3432,316 @@ function updateSoloChargeDisplay() {
         soloDisplay.textContent = minigamesState.minigameCharge;
     }
 }
+
+// ==================== MINIGAME SKINS SYSTEM ====================
+// Generic skin system for all minigames
+const MINIGAME_SKINS = {
+    slot: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        brown: { name: 'Brown Slot', cost: 150, owned: false, colors: { primary: '#8B4513', secondary: '#A0522D', bg: '#3E2723' } },
+        neon: { name: 'Neon', cost: 175, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 180, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    },
+    number: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        neon: { name: 'Neon', cost: 150, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 175, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    },
+    rps: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        neon: { name: 'Neon', cost: 150, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 175, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    },
+    dice: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        neon: { name: 'Neon', cost: 150, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 175, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    },
+    card: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        neon: { name: 'Neon', cost: 150, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 175, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    },
+    coin: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        green: { name: 'Green Coin', cost: 150, owned: false, colors: { primary: '#00FF00', secondary: '#32CD32', bg: '#001100' } },
+        neon: { name: 'Neon', cost: 175, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 180, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    },
+    memory: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        neon: { name: 'Neon', cost: 150, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 175, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    },
+    blackjack: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        neon: { name: 'Neon', cost: 150, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 175, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    },
+    color: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        neon: { name: 'Neon', cost: 150, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 175, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    },
+    math: {
+        default: { name: 'Default', cost: 0, owned: true, colors: { primary: '#FFD700', secondary: '#FF0000', bg: '#000' } },
+        neon: { name: 'Neon', cost: 150, owned: false, colors: { primary: '#00FFFF', secondary: '#FF00FF', bg: '#000' } },
+        gold: { name: 'Gold', cost: 200, owned: false, colors: { primary: '#FFD700', secondary: '#FFA500', bg: '#1a1a1a' } },
+        retro: { name: 'Retro', cost: 175, owned: false, colors: { primary: '#FF00FF', secondary: '#00FFFF', bg: '#0a0a0a' } }
+    }
+};
+
+// Load minigame skins
+function loadMinigameSkins(gameType) {
+    const saved = localStorage.getItem(`minigameSkin_${gameType}`);
+    if (saved) {
+        const owned = JSON.parse(saved);
+        Object.keys(owned).forEach(key => {
+            if (MINIGAME_SKINS[gameType] && MINIGAME_SKINS[gameType][key]) {
+                MINIGAME_SKINS[gameType][key].owned = true;
+            }
+        });
+    }
+}
+
+// Save minigame skins
+function saveMinigameSkins(gameType) {
+    const owned = {};
+    if (MINIGAME_SKINS[gameType]) {
+        Object.keys(MINIGAME_SKINS[gameType]).forEach(key => {
+            if (MINIGAME_SKINS[gameType][key].owned) {
+                owned[key] = true;
+            }
+        });
+        localStorage.setItem(`minigameSkin_${gameType}`, JSON.stringify(owned));
+    }
+}
+
+// Show minigame skins shop
+function showMinigameSkinsShop(gameType) {
+    loadMinigameCharge();
+    loadMinigameSkins(gameType);
+    
+    if (!MINIGAME_SKINS[gameType]) {
+        alert('No skins available for this minigame!');
+        return;
+    }
+    
+    const gameNames = {
+        'slot': 'Slot Machine',
+        'number': 'Number Guessing',
+        'rps': 'Rock Paper Scissors',
+        'dice': 'Dice Roll',
+        'card': 'Card Flip',
+        'coin': 'Coin Flip',
+        'memory': 'Memory Game',
+        'blackjack': 'Blackjack',
+        'color': 'Color Guessing',
+        'math': 'Quick Math'
+    };
+    
+    const overlay = document.createElement('div');
+    overlay.id = `minigame-skins-shop-${gameType}`;
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 20000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow-y: auto;
+    `;
+    
+    const shopContent = document.createElement('div');
+    shopContent.style.cssText = `
+        background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+        border: 5px solid #FFD700;
+        border-radius: 20px;
+        padding: 30px;
+        max-width: 800px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+    `;
+    
+    shopContent.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color: #FFD700; font-size: 2em; font-weight: bold;">🎨 ${gameNames[gameType] || 'Minigame'} Skins</h2>
+            <button onclick="this.closest('[id^=minigame-skins-shop]').remove()" style="
+                background: #ff0000;
+                color: #fff;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                font-size: 1.5em;
+                cursor: pointer;
+                font-weight: bold;
+            ">✕</button>
+        </div>
+        <div style="color: #FFD700; font-size: 1.2em; margin-bottom: 20px; font-weight: bold;">
+            ⚡ Minigame Charge: ${minigamesState.minigameCharge}
+        </div>
+        <div id="minigame-skin-list-${gameType}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+        </div>
+    `;
+    
+    const skinList = shopContent.querySelector(`#minigame-skin-list-${gameType}`);
+    
+    Object.keys(MINIGAME_SKINS[gameType]).forEach(skinKey => {
+        const skin = MINIGAME_SKINS[gameType][skinKey];
+        const skinCard = document.createElement('div');
+        skinCard.style.cssText = `
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            border: 3px solid ${skin.owned ? '#00FF00' : '#FFD700'};
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            cursor: ${skin.owned ? 'pointer' : 'default'};
+            opacity: ${skin.owned ? '1' : '0.7'};
+        `;
+        
+        const canBuy = minigamesState.minigameCharge >= skin.cost;
+        const currentSkin = localStorage.getItem(`currentMinigameSkin_${gameType}`) || 'default';
+        
+        skinCard.innerHTML = `
+            <div style="font-size: 3em; margin-bottom: 10px; color: ${skin.colors.primary};">🎨</div>
+            <h3 style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">${skin.name}</h3>
+            ${skin.owned ? 
+                `<div style="color: #00FF00; font-weight: bold; margin-bottom: 10px;">✓ OWNED</div>
+                 <button onclick="selectMinigameSkin('${gameType}', '${skinKey}')" style="
+                     background: ${currentSkin === skinKey ? '#666' : '#00FF00'};
+                     color: #000;
+                     border: none;
+                     padding: 10px 20px;
+                     border-radius: 10px;
+                     font-weight: bold;
+                     cursor: ${currentSkin === skinKey ? 'not-allowed' : 'pointer'};
+                     opacity: ${currentSkin === skinKey ? '0.5' : '1'};
+                 ">${currentSkin === skinKey ? 'CURRENT' : 'SELECT'}</button>` :
+                `<div style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">
+                    Cost: ⚡ ${skin.cost} Minigame Charge
+                </div>
+                 <button onclick="buyMinigameSkin('${gameType}', '${skinKey}')" style="
+                     background: ${canBuy ? '#FFD700' : '#666'};
+                     color: #000;
+                     border: none;
+                     padding: 10px 20px;
+                     border-radius: 10px;
+                     font-weight: bold;
+                     cursor: ${canBuy ? 'pointer' : 'not-allowed'};
+                     opacity: ${canBuy ? '1' : '0.5'};
+                 ">${canBuy ? 'BUY' : 'NEED ' + skin.cost + ' CHARGE'}</button>
+                `
+            }
+        `;
+        
+        skinList.appendChild(skinCard);
+    });
+    
+    overlay.appendChild(shopContent);
+    document.body.appendChild(overlay);
+}
+
+// Buy minigame skin
+function buyMinigameSkin(gameType, skinKey) {
+    const skin = MINIGAME_SKINS[gameType] && MINIGAME_SKINS[gameType][skinKey];
+    if (!skin || skin.owned) return;
+    
+    loadMinigameCharge();
+    
+    if (minigamesState.minigameCharge < skin.cost) {
+        alert(`You need ${skin.cost} minigame charge to buy this skin!`);
+        return;
+    }
+    
+    minigamesState.minigameCharge -= skin.cost;
+    saveMinigameCharge();
+    
+    skin.owned = true;
+    saveMinigameSkins(gameType);
+    
+    if (typeof addLog === 'function') {
+        addLog(`🎨 Purchased ${skin.name} for ${gameType} minigame for ${skin.cost} minigame charge!`);
+    }
+    
+    // Refresh shop
+    const overlay = document.getElementById(`minigame-skins-shop-${gameType}`);
+    if (overlay) overlay.remove();
+    showMinigameSkinsShop(gameType);
+}
+
+// Select minigame skin
+function selectMinigameSkin(gameType, skinKey) {
+    const skin = MINIGAME_SKINS[gameType] && MINIGAME_SKINS[gameType][skinKey];
+    if (!skin || !skin.owned) return;
+    
+    localStorage.setItem(`currentMinigameSkin_${gameType}`, skinKey);
+    
+    // Apply skin to current minigame
+    applyMinigameSkin(gameType, skinKey);
+    
+    if (typeof addLog === 'function') {
+        addLog(`🎨 Selected ${skin.name} skin for ${gameType} minigame!`);
+    }
+    
+    // Refresh shop
+    const overlay = document.getElementById(`minigame-skins-shop-${gameType}`);
+    if (overlay) overlay.remove();
+    showMinigameSkinsShop(gameType);
+}
+
+// Apply minigame skin
+function applyMinigameSkin(gameType, skinKey) {
+    const skin = MINIGAME_SKINS[gameType] && MINIGAME_SKINS[gameType][skinKey];
+    if (!skin) return;
+    
+    const container = document.getElementById('minigame-container');
+    if (!container) return;
+    
+    // Apply CSS variables for skin
+    const styleId = `minigame-skin-${gameType}`;
+    let styleEl = document.getElementById(styleId);
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        document.head.appendChild(styleEl);
+    }
+    
+    styleEl.textContent = `
+        .minigame-${gameType}, .minigame-${gameType.replace('-', '-')} {
+            --primary-color: ${skin.colors.primary};
+            --secondary-color: ${skin.colors.secondary};
+            --bg-color: ${skin.colors.bg};
+        }
+        .minigame-${gameType} h2,
+        .minigame-${gameType} .btn {
+            color: ${skin.colors.primary} !important;
+        }
+        .minigame-${gameType} {
+            background: ${skin.colors.bg} !important;
+        }
+    `;
+}
+
+// Export functions
+window.showMinigameSkinsShop = showMinigameSkinsShop;
+window.buyMinigameSkin = buyMinigameSkin;
+window.selectMinigameSkin = selectMinigameSkin;
+window.applyMinigameSkin = applyMinigameSkin;
 
 // Load minigame charge on page load
 if (typeof window !== 'undefined') {

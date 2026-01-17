@@ -847,8 +847,28 @@ function buyFlappyThemeWithPoints(themeKey) {
 }
 
 function tradeFlappyPointsForCash() {
+    loadFlappyPoints();
     if (flappyGame.flappyPoints < 10) {
         alert('You need at least 10 flappy points to trade!');
+        return;
+    }
+    
+    const amountStr = prompt(`Enter amount of flappy points to trade (10 points = 5 cash).\nYou have: ${flappyGame.flappyPoints} points\nMinimum: 10 points`);
+    if (!amountStr) return;
+    
+    const amount = parseInt(amountStr);
+    if (isNaN(amount) || amount < 10) {
+        alert('Please enter a valid amount (minimum 10 points)!');
+        return;
+    }
+    
+    if (amount % 10 !== 0) {
+        alert('You can only trade in multiples of 10 flappy points!');
+        return;
+    }
+    
+    if (amount > flappyGame.flappyPoints) {
+        alert(`You don't have enough points! You have ${flappyGame.flappyPoints} points.`);
         return;
     }
     
@@ -859,19 +879,21 @@ function tradeFlappyPointsForCash() {
         return;
     }
     
-    flappyGame.flappyPoints -= 10;
-    player.money += 5;
+    const cashEarned = (amount / 10) * 5;
+    flappyGame.flappyPoints -= amount;
+    player.money += cashEarned;
     saveFlappyPoints();
     
     if (typeof addLog === 'function') {
-        addLog(`💰 Traded 10 flappy points for 5 cash! (Points: ${flappyGame.flappyPoints})`);
+        addLog(`💰 Traded ${amount} flappy points for ${cashEarned} cash! (Points remaining: ${flappyGame.flappyPoints})`);
     }
     if (typeof updateDisplay === 'function') {
         updateDisplay();
     }
     
     // Refresh shop
-    document.getElementById('flappy-theme-shop').remove();
+    const shop = document.getElementById('flappy-theme-shop');
+    if (shop) shop.remove();
     showFlappyThemeShop();
 }
 

@@ -5,7 +5,7 @@ let adminPanelVisible = false;
 // Check if user is admin
 function checkAdminStatus() {
     const adminCode = localStorage.getItem('adminCode');
-    if (adminCode === 'admin_1') {
+    if (adminCode === 'ADMIN_1' || adminCode === 'admin_1') {
         isAdmin = true;
         if (adminPanelVisible) {
             showAdminPanel();
@@ -18,8 +18,8 @@ function redeemCode() {
     const codeInput = document.getElementById('redeem-code-input') || document.getElementById('redeem-code-input-game');
     const code = codeInput ? codeInput.value.trim() : '';
     
-    if (code === 'admin_1') {
-        localStorage.setItem('adminCode', code);
+    if (code === 'ADMIN_1' || code === 'admin_1') {
+        localStorage.setItem('adminCode', 'ADMIN_1');
         isAdmin = true;
         adminPanelVisible = true;
         alert('🎉 Admin access granted! Admin panel unlocked!');
