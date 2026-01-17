@@ -56,6 +56,12 @@ function showAdminPanel() {
                     <button class="btn btn-small" onclick="adminSetFlappyPoints(999999)">Set to 999,999</button>
                 </div>
                 <div class="admin-section">
+                    <h4>Minigame Charge</h4>
+                    <button class="btn btn-small" onclick="adminAddMinigameCharge(1000)">+1000 Charge</button>
+                    <button class="btn btn-small" onclick="adminAddMinigameCharge(5000)">+5000 Charge</button>
+                    <button class="btn btn-small" onclick="adminSetMinigameCharge(999999)">Set to 999,999</button>
+                </div>
+                <div class="admin-section">
                     <h4>Chaos Cards</h4>
                     <button class="btn btn-small" onclick="adminAddChaosCards(5)">+5 Cards</button>
                     <button class="btn btn-small" onclick="adminAddChaosCards(10)">+10 Cards</button>

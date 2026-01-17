@@ -2897,6 +2897,9 @@ function showMinigamesMenu() {
                 ⚡ Your Minigame Charge: <span id="menu-charge-display">${minigamesState.minigameCharge}</span>
             </div>
             <p style="text-align: center; color: #FFD700; margin-bottom: 20px;">Play minigames like Snake to earn charge! Each food in Snake = 5 charge!</p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;">
+                <button class="btn btn-large" onclick="showGameThemes()">🎨 Game Themes</button>
+            </div>
             <div class="minigames-grid">
                 ${MINIGAMES.map((game, index) => `
                     <div class="minigame-card" onclick="selectMinigame(${index})">
