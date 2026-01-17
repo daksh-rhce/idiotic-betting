@@ -102,8 +102,54 @@ function applyGameTheme(themeName) {
     applyThemeStyles(themeName);
 }
 
+// Clear all theme text modifications
+function clearThemeTextModifications() {
+    // Remove all theme-specific dataset attributes and restore original text
+    document.querySelectorAll('[data-poop-applied], [data-cookie-applied], [data-error-applied], [data-speed-applied]').forEach(el => {
+        // Restore original text if stored
+        if (el.dataset.originalText) {
+            el.textContent = el.dataset.originalText;
+            delete el.dataset.originalText;
+        } else {
+            // Fallback: try to remove theme-specific prefixes/suffixes
+            let text = el.textContent || '';
+            
+            // Remove poop emojis
+            if (el.dataset.poopApplied) {
+                text = text.replace(/^💩\s+/, '').replace(/\s+💩$/, '').replace(/\s+💩\s+/g, ' ');
+            }
+            
+            // Remove cookie emojis
+            if (el.dataset.cookieApplied) {
+                text = text.replace(/^🍪\s+/, '').replace(/\s+🍪$/, '').replace(/\s+🍪\s+/g, ' ');
+            }
+            
+            // Remove ERROR prefix/suffix
+            if (el.dataset.errorApplied) {
+                text = text.replace(/^ERROR:\s*/i, '').replace(/\s*ERROR$/i, '').replace(/\s*ERROR\s*/gi, ' ').trim();
+            }
+            
+            // Remove iShowSpeed emojis
+            if (el.dataset.speedApplied) {
+                text = text.replace(/^⚡\s+/, '').replace(/\s+⚡$/, '').replace(/\s+⚡\s+/g, ' ');
+            }
+            
+            el.textContent = text;
+        }
+        
+        // Clear all theme dataset attributes
+        delete el.dataset.poopApplied;
+        delete el.dataset.cookieApplied;
+        delete el.dataset.errorApplied;
+        delete el.dataset.speedApplied;
+    });
+}
+
 // Apply theme-specific CSS
 function applyThemeStyles(themeName) {
+    // Clear all previous theme modifications first
+    clearThemeTextModifications();
+    
     let styleId = 'game-theme-styles';
     let styleEl = document.getElementById(styleId);
     if (!styleEl) {
@@ -135,9 +181,13 @@ function applyThemeStyles(themeName) {
             setTimeout(() => {
                 document.querySelectorAll('h1, h2, h3, button, .btn').forEach(el => {
                     if (!el.dataset.poopApplied) {
+                        // Store original text if not already stored
+                        if (!el.dataset.originalText) {
+                            el.dataset.originalText = el.textContent;
+                        }
                         el.dataset.poopApplied = 'true';
-                        const originalText = el.textContent;
-                        el.textContent = '💩 ' + originalText.replace(/💩/g, '') + ' 💩';
+                        const cleanText = el.dataset.originalText || el.textContent.replace(/💩/g, '').trim();
+                        el.textContent = '💩 ' + cleanText + ' 💩';
                     }
                 });
             }, 100);
@@ -199,9 +249,13 @@ function applyThemeStyles(themeName) {
             setTimeout(() => {
                 document.querySelectorAll('h1, h2, h3, button, .btn').forEach(el => {
                     if (!el.dataset.cookieApplied) {
+                        // Store original text if not already stored
+                        if (!el.dataset.originalText) {
+                            el.dataset.originalText = el.textContent;
+                        }
                         el.dataset.cookieApplied = 'true';
-                        const originalText = el.textContent;
-                        el.textContent = '🍪 ' + originalText.replace(/🍪/g, '') + ' 🍪';
+                        const cleanText = el.dataset.originalText || el.textContent.replace(/🍪/g, '').trim();
+                        el.textContent = '🍪 ' + cleanText + ' 🍪';
                     }
                 });
             }, 100);
@@ -233,9 +287,13 @@ function applyThemeStyles(themeName) {
             setTimeout(() => {
                 document.querySelectorAll('h1, h2, h3, button, .btn, .card').forEach(el => {
                     if (!el.dataset.errorApplied) {
+                        // Store original text if not already stored
+                        if (!el.dataset.originalText) {
+                            el.dataset.originalText = el.textContent;
+                        }
                         el.dataset.errorApplied = 'true';
-                        const originalText = el.textContent;
-                        el.textContent = 'ERROR: ' + originalText.replace(/ERROR:/g, '') + ' ERROR';
+                        const cleanText = el.dataset.originalText || el.textContent.replace(/ERROR:/gi, '').replace(/ERROR/gi, '').trim();
+                        el.textContent = 'ERROR: ' + cleanText + ' ERROR';
                     }
                 });
             }, 100);
@@ -259,9 +317,13 @@ function applyThemeStyles(themeName) {
             setTimeout(() => {
                 document.querySelectorAll('h1, h2, h3, button, .btn').forEach(el => {
                     if (!el.dataset.speedApplied) {
+                        // Store original text if not already stored
+                        if (!el.dataset.originalText) {
+                            el.dataset.originalText = el.textContent;
+                        }
                         el.dataset.speedApplied = 'true';
-                        const originalText = el.textContent;
-                        el.textContent = '⚡ ' + originalText + ' ⚡';
+                        const cleanText = el.dataset.originalText || el.textContent.replace(/⚡/g, '').trim();
+                        el.textContent = '⚡ ' + cleanText + ' ⚡';
                     }
                 });
             }, 100);
