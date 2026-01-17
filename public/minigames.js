@@ -2782,7 +2782,7 @@ function updatePacManDisplay() {
     const livesEl = document.getElementById('pacman-lives');
     if (levelEl) levelEl.textContent = pacManGame.level;
     if (scoreEl) scoreEl.textContent = pacManGame.score;
-    if (chargeEl) chargeEl.textContent = Math.round(pacManGame.charge * 100) / 100;
+    if (chargeEl) chargeEl.textContent = (Math.round(pacManGame.charge * 100) / 100).toFixed(2);
     if (livesEl) livesEl.textContent = pacManGame.lives;
 }
 
