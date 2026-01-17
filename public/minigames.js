@@ -30,6 +30,10 @@ function updateMinigameChargeDisplay() {
     if (menuDisplay) {
         menuDisplay.textContent = minigamesState.minigameCharge;
     }
+    const soloDisplay = document.getElementById('solo-charge-count');
+    if (soloDisplay) {
+        soloDisplay.textContent = minigamesState.minigameCharge;
+    }
 }
 
 // Add charge (called from minigames)

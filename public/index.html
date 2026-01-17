@@ -173,7 +173,10 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <button class="btn btn-small" onclick="showScreen('mode-screen')" style="margin-right: 10px;">← Back to Modes</button>
                     <h1 style="flex: 1; text-align: center; margin: 0;">🎲 Idiotic Betting</h1>
-                    <div style="width: 150px;"></div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span id="solo-charge-display" style="color: #FFD700; font-weight: bold;">⚡ Charge: <span id="solo-charge-count">0</span></span>
+                        <button class="btn btn-small" onclick="showChargeConversion()">💰 Convert</button>
+                    </div>
                 </div>
                 <div class="game-info">
                     <div class="phase-display">
