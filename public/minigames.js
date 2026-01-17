@@ -1270,15 +1270,11 @@ function updateMazeGame() {
         if (distance < (mazeGame.player.size + mazeGame.exit.size) / 2) {
             // Level complete!
             mazeGame.level++;
-            const bonus = mazeGame.level * 50;
-            const player = getMinigamePlayer();
-            if (player) {
-                player.money += bonus;
-                mazeGame.totalMoney += bonus;
-            }
+            // Give 10 minigame charge per level completion
+            addMinigameCharge(10);
             
             if (typeof addLog === 'function') {
-                addLog(`🧩 Level ${mazeGame.level - 1} Complete! Bonus: +${bonus} money!`);
+                addLog(`🧩 Level ${mazeGame.level - 1} Complete! +10 minigame charge!`);
             }
             
             // Generate next level
@@ -1741,10 +1737,8 @@ function updateBreakoutGame() {
             breakoutGame.ball.y - breakoutGame.ball.radius <= block.y + block.height) {
             block.broken = true;
             breakoutGame.score += 10;
-            breakoutGame.money += 10;
-            const player = getMinigamePlayer();
-            if (player) player.money += 10;
-            updateMinigameDisplay();
+            // Each block gives 1 minigame charge
+            addMinigameCharge(1);
             breakoutGame.ball.dy = -breakoutGame.ball.dy;
             updateBreakoutDisplay();
         }
@@ -1764,11 +1758,6 @@ function updateBreakoutGame() {
     // Win condition
     if (breakoutGame.blocks.every(b => b.broken)) {
         breakoutGame.gameOver = true;
-        const bonus = 100;
-        breakoutGame.money += bonus;
-        const player = getMinigamePlayer();
-        if (player) player.money += bonus;
-        updateMinigameDisplay();
         endBreakoutGame();
     }
 }
@@ -2006,11 +1995,8 @@ function clearTetrisLines() {
     if (linesCleared > 0) {
         tetrisGame.lines += linesCleared;
         tetrisGame.score += linesCleared * 100;
-        const moneyEarned = linesCleared * 50;
-        tetrisGame.money += moneyEarned;
-        const player = getMinigamePlayer();
-        if (player) player.money += moneyEarned;
-        updateMinigameDisplay();
+        // Each line cleared gives 15 minigame charge
+        addMinigameCharge(linesCleared * 15);
         updateTetrisDisplay();
     }
 }
@@ -2020,8 +2006,10 @@ function updateTetrisGame(time) {
     
     const deltaTime = time - tetrisGame.lastTime;
     tetrisGame.dropTime += deltaTime;
+    tetrisGame.lastTime = time;
     
-    if (tetrisGame.dropTime > 1000) {
+    // Auto-drop 1 block per second
+    if (tetrisGame.dropTime >= 1000) {
         moveTetrisPiece(0, 1);
         tetrisGame.dropTime = 0;
     }
@@ -2147,6 +2135,10 @@ let pongGame = {
 function startPongGame() {
     const canvas = document.getElementById('pong-canvas');
     if (!canvas) return;
+    // Remove old event listeners to prevent speed increase
+    document.removeEventListener('keydown', handlePongKeyDown);
+    document.removeEventListener('keyup', handlePongKeyUp);
+    
     pongGame.canvas = canvas;
     pongGame.ctx = canvas.getContext('2d');
     pongGame.gameStarted = true;
@@ -2207,7 +2199,7 @@ function updatePongGame() {
         pongGame.ball.y <= pongGame.playerPaddle.y + pongGame.playerPaddle.height &&
         pongGame.ball.dx < 0) {
         pongGame.ball.dx = -pongGame.ball.dx;
-        pongGame.ball.dx *= 1.1; // Speed up
+        // Don't speed up to prevent game getting faster on restart
     }
     
     if (pongGame.ball.x + pongGame.ball.radius >= pongGame.aiPaddle.x &&
@@ -2215,7 +2207,7 @@ function updatePongGame() {
         pongGame.ball.y <= pongGame.aiPaddle.y + pongGame.aiPaddle.height &&
         pongGame.ball.dx > 0) {
         pongGame.ball.dx = -pongGame.ball.dx;
-        pongGame.ball.dx *= 1.1;
+        // Don't speed up to prevent game getting faster on restart
     }
     
     // Score
@@ -2224,10 +2216,8 @@ function updatePongGame() {
         resetPongBall();
     } else if (pongGame.ball.x > pongGame.canvas.width) {
         pongGame.playerScore++;
-        pongGame.money += 20;
-        const player = getMinigamePlayer();
-        if (player) player.money += 20;
-        updateMinigameDisplay();
+        // Each point is now 5 minigame charge
+        addMinigameCharge(5);
         resetPongBall();
     }
     
@@ -2625,7 +2615,7 @@ function startSpaceInvadersGame() {
     spaceInvadersGame.score = 0;
     spaceInvadersGame.money = 0;
     spaceInvadersGame.lives = 3;
-    spaceInvadersGame.player = { x: 300, y: 450, width: 50, height: 20, speed: 5 };
+    spaceInvadersGame.player = { x: 300, y: 450, width: 25, height: 20, speed: 5 }; // Half width
     spaceInvadersGame.bullets = [];
     spaceInvadersGame.alienBullets = [];
     spaceInvadersGame.aliens = [];
@@ -2700,10 +2690,8 @@ function updateSpaceInvadersGame() {
                     alien.destroyed = true;
                     spaceInvadersGame.bullets.splice(index, 1);
                     spaceInvadersGame.score += 100;
-                    spaceInvadersGame.money += 15;
-                    const player = getMinigamePlayer();
-                    if (player) player.money += 15;
-                    updateMinigameDisplay();
+                    // Each alien shot down is worth 1 charge
+                    addMinigameCharge(1);
                     updateSpaceInvadersDisplay();
                 }
             });
