@@ -2950,12 +2950,159 @@ if (typeof window !== 'undefined') {
     window.loadMinigameCharge = loadMinigameCharge;
     window.addMinigameCharge = addMinigameCharge;
     window.updateMinigameChargeDisplay = updateMinigameChargeDisplay;
+    window.showChargeConversion = showChargeConversion;
+    window.convertChargeToMoney = convertChargeToMoney;
+    window.updateSoloChargeDisplay = updateSoloChargeDisplay;
+}
+
+// Charge to Money Conversion (10 charge = 5 money)
+function showChargeConversion() {
+    loadMinigameCharge();
+    const overlay = document.createElement('div');
+    overlay.id = 'charge-conversion-modal';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 20000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+        border: 5px solid #FFD700;
+        border-radius: 20px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+    `;
+    
+    modal.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="color: #FFD700; font-size: 2em; font-weight: bold; margin: 0;">💰 Convert Charge to Money</h2>
+            <button onclick="this.closest('#charge-conversion-modal').remove()" style="
+                background: #ff0000;
+                color: #fff;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                font-size: 1.5em;
+                cursor: pointer;
+                font-weight: bold;
+            ">✕</button>
+        </div>
+        <div style="color: #FFD700; font-size: 1.2em; margin-bottom: 20px; font-weight: bold;">
+            ⚡ Your Charge: ${minigamesState.minigameCharge}
+        </div>
+        <div style="color: #FFD700; font-size: 1em; margin-bottom: 20px;">
+            Conversion Rate: <strong>10 Charge = 5 Money</strong>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label style="color: #FFD700; font-weight: bold; display: block; margin-bottom: 10px;">Amount of Charge to Convert:</label>
+            <input type="number" id="charge-convert-amount" min="10" step="10" value="10" style="
+                width: 100%;
+                padding: 10px;
+                background: #2a2a2a;
+                border: 2px solid #FFD700;
+                border-radius: 10px;
+                color: #FFD700;
+                font-size: 1.1em;
+                font-weight: bold;
+            ">
+        </div>
+        <div style="color: #FFD700; font-size: 1em; margin-bottom: 20px; font-weight: bold;">
+            You will receive: <span id="money-preview">0</span> money
+        </div>
+        <button class="btn btn-large" onclick="convertChargeToMoney()" style="width: 100%;">Convert</button>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Update preview on input change
+    const amountInput = document.getElementById('charge-convert-amount');
+    const preview = document.getElementById('money-preview');
+    amountInput.addEventListener('input', () => {
+        const amount = parseInt(amountInput.value) || 0;
+        const money = Math.floor(amount / 10) * 5;
+        preview.textContent = money;
+    });
+    amountInput.dispatchEvent(new Event('input'));
+}
+
+function convertChargeToMoney() {
+    loadMinigameCharge();
+    const amountInput = document.getElementById('charge-convert-amount');
+    const amount = parseInt(amountInput.value) || 0;
+    
+    if (amount < 10) {
+        alert('Minimum conversion is 10 charge!');
+        return;
+    }
+    
+    if (amount % 10 !== 0) {
+        alert('Amount must be a multiple of 10!');
+        return;
+    }
+    
+    if (minigamesState.minigameCharge < amount) {
+        alert(`You don't have enough charge! You have ${minigamesState.minigameCharge}, but need ${amount}.`);
+        return;
+    }
+    
+    const money = Math.floor(amount / 10) * 5;
+    minigamesState.minigameCharge -= amount;
+    saveMinigameCharge();
+    
+    // Add money to solo mode player if in solo mode
+    if (typeof gameState !== 'undefined' && gameState.players && gameState.playerId !== undefined) {
+        const player = gameState.players[gameState.playerId];
+        if (player) {
+            player.money += money;
+            if (typeof updateDisplay === 'function') {
+                updateDisplay();
+            }
+        }
+    }
+    
+    if (typeof addLog === 'function') {
+        addLog(`💰 Converted ${amount} charge to ${money} money!`);
+    }
+    
+    // Close modal
+    const modal = document.getElementById('charge-conversion-modal');
+    if (modal) modal.remove();
+    
+    // Update displays
+    updateMinigameChargeDisplay();
+}
+
+// Update solo charge display
+function updateSoloChargeDisplay() {
+    loadMinigameCharge();
+    const soloDisplay = document.getElementById('solo-charge-count');
+    if (soloDisplay) {
+        soloDisplay.textContent = minigamesState.minigameCharge;
+    }
 }
 
 // Load minigame charge on page load
-if (typeof window !== 'undefined' && document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadMinigameCharge);
-} else {
-    loadMinigameCharge();
+if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMinigameCharge();
+            updateSoloChargeDisplay();
+        });
+    } else {
+        loadMinigameCharge();
+        updateSoloChargeDisplay();
+    }
 }
 
