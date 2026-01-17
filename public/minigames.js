@@ -180,10 +180,10 @@ function playNumberGuessing() {
     const guessInput = document.getElementById('number-guess');
     const bet = parseInt(betInput.value) || 50;
     const guess = parseInt(guessInput.value);
-    const player = gameState.players[gameState.playerId];
+    loadMinigameCharge();
     
-    if (!player || player.money < bet) {
-        alert('Not enough money!');
+    if (minigamesState.minigameCharge < bet) {
+        alert('Not enough minigame charge!');
         return;
     }
     
@@ -192,8 +192,8 @@ function playNumberGuessing() {
         return;
     }
     
-    player.money -= bet;
-    updateDisplay();
+    minigamesState.minigameCharge -= bet;
+    saveMinigameCharge();
     
     const secretNumber = Math.floor(Math.random() * 100) + 1;
     const difference = Math.abs(guess - secretNumber);
@@ -209,12 +209,12 @@ function playNumberGuessing() {
     }
     
     if (win > 0) {
-        player.money += win;
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">Secret number was ${secretNumber}. You guessed ${guess}. WIN! +${win} money!</div>`;
-        addLog(`🎯 Number Guessing: Won ${win} money!`);
+        addMinigameCharge(win);
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">Secret number was ${secretNumber}. You guessed ${guess}. WIN! +${win} charge!</div>`;
+        addLog(`🎯 Number Guessing: Won ${win} charge!`);
     } else {
-        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Secret number was ${secretNumber}. You guessed ${guess}. Lost ${bet} money</div>`;
-        addLog(`🎯 Number Guessing: Lost ${bet} money`);
+        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Secret number was ${secretNumber}. You guessed ${guess}. Lost ${bet} charge</div>`;
+        addLog(`🎯 Number Guessing: Lost ${bet} charge`);
     }
     updateMinigameDisplay();
 }
@@ -239,14 +239,15 @@ function initRockPaperScissors() {
 function playRPS(choice) {
     const betInput = document.getElementById('rps-bet');
     const bet = parseInt(betInput.value) || 50;
-    const player = getMinigamePlayer();
+    loadMinigameCharge();
     
-    if (!player || player.money < bet) {
-        alert('Not enough money!');
+    if (minigamesState.minigameCharge < bet) {
+        alert('Not enough minigame charge!');
         return;
     }
     
-    player.money -= bet;
+    minigamesState.minigameCharge -= bet;
+    saveMinigameCharge();
     updateMinigameDisplay();
     
     const choices = ['rock', 'paper', 'scissors'];
@@ -266,12 +267,12 @@ function playRPS(choice) {
     
     const emojis = { rock: '🪨', paper: '📄', scissors: '✂️' };
     if (win > 0) {
-        player.money += win;
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">You: ${emojis[choice]} vs Computer: ${emojis[computerChoice]}. WIN! +${win} money!</div>`;
-        addLog(`✂️ Rock Paper Scissors: Won ${win} money!`);
+        addMinigameCharge(win);
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">You: ${emojis[choice]} vs Computer: ${emojis[computerChoice]}. WIN! +${win} charge!</div>`;
+        addLog(`✂️ Rock Paper Scissors: Won ${win} charge!`);
     } else {
-        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">You: ${emojis[choice]} vs Computer: ${emojis[computerChoice]}. Lost ${bet} money</div>`;
-        addLog(`✂️ Rock Paper Scissors: Lost ${bet} money`);
+        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">You: ${emojis[choice]} vs Computer: ${emojis[computerChoice]}. Lost ${bet} charge</div>`;
+        addLog(`✂️ Rock Paper Scissors: Lost ${bet} charge`);
     }
     updateMinigameDisplay();
 }
@@ -293,15 +294,15 @@ function initDiceRoll() {
 function playDiceRoll() {
     const betInput = document.getElementById('dice-bet');
     const bet = parseInt(betInput.value) || 50;
-    const player = getMinigamePlayer();
+    loadMinigameCharge();
     
-    if (!player || player.money < bet) {
-        alert('Not enough money!');
+    if (minigamesState.minigameCharge < bet) {
+        alert('Not enough minigame charge!');
         return;
     }
     
-    player.money -= bet;
-    updateMinigameDisplay();
+    minigamesState.minigameCharge -= bet;
+    saveMinigameCharge();
     
     const playerRoll = Math.floor(Math.random() * 6) + 1;
     const computerRoll = Math.floor(Math.random() * 6) + 1;
@@ -315,12 +316,12 @@ function playDiceRoll() {
     }
     
     if (win > 0) {
-        player.money += win;
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">You: ${playerRoll} vs Computer: ${computerRoll}. WIN! +${win} money!</div>`;
-        addLog(`🎲 Dice Roll: Won ${win} money!`);
+        addMinigameCharge(win);
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">You: ${playerRoll} vs Computer: ${computerRoll}. WIN! +${win} charge!</div>`;
+        addLog(`🎲 Dice Roll: Won ${win} charge!`);
     } else {
-        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">You: ${playerRoll} vs Computer: ${computerRoll}. Lost ${bet} money</div>`;
-        addLog(`🎲 Dice Roll: Lost ${bet} money`);
+        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">You: ${playerRoll} vs Computer: ${computerRoll}. Lost ${bet} charge</div>`;
+        addLog(`🎲 Dice Roll: Lost ${bet} charge`);
     }
     updateMinigameDisplay();
 }
@@ -342,15 +343,15 @@ function initCardFlip() {
 function playCardFlip() {
     const betInput = document.getElementById('card-bet');
     const bet = parseInt(betInput.value) || 50;
-    const player = getMinigamePlayer();
+    loadMinigameCharge();
     
-    if (!player || player.money < bet) {
-        alert('Not enough money!');
+    if (minigamesState.minigameCharge < bet) {
+        alert('Not enough minigame charge!');
         return;
     }
     
-    player.money -= bet;
-    updateMinigameDisplay();
+    minigamesState.minigameCharge -= bet;
+    saveMinigameCharge();
     
     const suits = ['♠️', '♥️', '♦️', '♣️'];
     const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -371,12 +372,12 @@ function playCardFlip() {
     }
     
     if (win > 0) {
-        player.money += win;
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">You: ${playerCard.suit}${playerCard.value} vs Dealer: ${dealerCard.suit}${dealerCard.value}. WIN! +${win} money!</div>`;
-        addLog(`🃏 Card Flip: Won ${win} money!`);
+        addMinigameCharge(win);
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">You: ${playerCard.suit}${playerCard.value} vs Dealer: ${dealerCard.suit}${dealerCard.value}. WIN! +${win} charge!</div>`;
+        addLog(`🃏 Card Flip: Won ${win} charge!`);
     } else {
-        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">You: ${playerCard.suit}${playerCard.value} vs Dealer: ${dealerCard.suit}${dealerCard.value}. Lost ${bet} money</div>`;
-        addLog(`🃏 Card Flip: Lost ${bet} money`);
+        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">You: ${playerCard.suit}${playerCard.value} vs Dealer: ${dealerCard.suit}${dealerCard.value}. Lost ${bet} charge</div>`;
+        addLog(`🃏 Card Flip: Lost ${bet} charge`);
     }
     updateMinigameDisplay();
 }
@@ -400,15 +401,15 @@ function initCoinFlip() {
 function playCoinFlip(choice) {
     const betInput = document.getElementById('coin-bet');
     const bet = parseInt(betInput.value) || 50;
-    const player = getMinigamePlayer();
+    loadMinigameCharge();
     
-    if (!player || player.money < bet) {
-        alert('Not enough money!');
+    if (minigamesState.minigameCharge < bet) {
+        alert('Not enough minigame charge!');
         return;
     }
     
-    player.money -= bet;
-    updateMinigameDisplay();
+    minigamesState.minigameCharge -= bet;
+    saveMinigameCharge();
     
     const result = Math.random() < 0.5 ? 'heads' : 'tails';
     const resultDiv = document.getElementById('coin-result');
@@ -419,12 +420,12 @@ function playCoinFlip(choice) {
     }
     
     if (win > 0) {
-        player.money += win;
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">Result: ${result}. You chose ${choice}. WIN! +${win} money!</div>`;
-        addLog(`🪙 Coin Flip: Won ${win} money!`);
+        addMinigameCharge(win);
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">Result: ${result}. You chose ${choice}. WIN! +${win} charge!</div>`;
+        addLog(`🪙 Coin Flip: Won ${win} charge!`);
     } else {
-        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Result: ${result}. You chose ${choice}. Lost ${bet} money</div>`;
-        addLog(`🪙 Coin Flip: Lost ${bet} money`);
+        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Result: ${result}. You chose ${choice}. Lost ${bet} charge</div>`;
+        addLog(`🪙 Coin Flip: Lost ${bet} charge`);
     }
     updateMinigameDisplay();
 }
@@ -482,11 +483,17 @@ function flipMemoryCard(index) {
             
             if (memoryGameState.matches === 6) {
                 const bet = parseInt(document.getElementById('memory-bet').value) || 50;
-                const player = getMinigamePlayer();
+                loadMinigameCharge();
+                if (minigamesState.minigameCharge < bet) {
+                    alert('Not enough minigame charge!');
+                    return;
+                }
+                minigamesState.minigameCharge -= bet;
+                saveMinigameCharge();
                 const win = bet * 3;
-                player.money += win;
-                document.getElementById('memory-result').innerHTML = `<div style="color: #00ff00; font-weight: bold;">You won! +${win} money!</div>`;
-                addLog(`🧠 Memory Game: Won ${win} money!`);
+                addMinigameCharge(win);
+                document.getElementById('memory-result').innerHTML = `<div style="color: #00ff00; font-weight: bold;">You won! +${win} charge!</div>`;
+                addLog(`🧠 Memory Game: Won ${win} charge!`);
                 updateMinigameDisplay();
             }
         }, 1000);
@@ -509,15 +516,15 @@ function initBlackjack() {
 function startBlackjack() {
     const betInput = document.getElementById('bj-bet');
     const bet = parseInt(betInput.value) || 50;
-    const player = getMinigamePlayer();
+    loadMinigameCharge();
     
-    if (!player || player.money < bet) {
-        alert('Not enough money!');
+    if (minigamesState.minigameCharge < bet) {
+        alert('Not enough minigame charge!');
         return;
     }
     
-    player.money -= bet;
-    updateMinigameDisplay();
+    minigamesState.minigameCharge -= bet;
+    saveMinigameCharge();
     
     const getCard = () => Math.min(10, Math.floor(Math.random() * 13) + 1);
     const playerCards = [getCard(), getCard()];
@@ -542,12 +549,12 @@ function startBlackjack() {
     }
     
     if (win > 0) {
-        player.money += win;
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">You: ${playerTotal} vs Dealer: ${dealerTotal}. WIN! +${win} money!</div>`;
-        addLog(`🃏 Blackjack: Won ${win} money!`);
+        addMinigameCharge(win);
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">You: ${playerTotal} vs Dealer: ${dealerTotal}. WIN! +${win} charge!</div>`;
+        addLog(`🃏 Blackjack: Won ${win} charge!`);
     } else {
-        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">You: ${playerTotal} vs Dealer: ${dealerTotal}. Lost ${bet} money</div>`;
-        addLog(`🃏 Blackjack: Lost ${bet} money`);
+        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">You: ${playerTotal} vs Dealer: ${dealerTotal}. Lost ${bet} charge</div>`;
+        addLog(`🃏 Blackjack: Lost ${bet} charge`);
     }
     updateMinigameDisplay();
 }
@@ -572,15 +579,15 @@ function initColorGuessing() {
 function playColorGuessing(choice) {
     const betInput = document.getElementById('color-bet');
     const bet = parseInt(betInput.value) || 50;
-    const player = getMinigamePlayer();
+    loadMinigameCharge();
     
-    if (!player || player.money < bet) {
-        alert('Not enough money!');
+    if (minigamesState.minigameCharge < bet) {
+        alert('Not enough minigame charge!');
         return;
     }
     
-    player.money -= bet;
-    updateMinigameDisplay();
+    minigamesState.minigameCharge -= bet;
+    saveMinigameCharge();
     
     const result = Math.random() < 0.5 ? 'red' : 'black';
     const resultDiv = document.getElementById('color-result');
@@ -591,12 +598,12 @@ function playColorGuessing(choice) {
     }
     
     if (win > 0) {
-        player.money += win;
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">Result: ${result.toUpperCase()}. You chose ${choice.toUpperCase()}. WIN! +${win} money!</div>`;
-        addLog(`🎨 Color Guessing: Won ${win} money!`);
+        addMinigameCharge(win);
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">Result: ${result.toUpperCase()}. You chose ${choice.toUpperCase()}. WIN! +${win} charge!</div>`;
+        addLog(`🎨 Color Guessing: Won ${win} charge!`);
     } else {
-        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Result: ${result.toUpperCase()}. You chose ${choice.toUpperCase()}. Lost ${bet} money</div>`;
-        addLog(`🎨 Color Guessing: Lost ${bet} money`);
+        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Result: ${result.toUpperCase()}. You chose ${choice.toUpperCase()}. Lost ${bet} charge</div>`;
+        addLog(`🎨 Color Guessing: Lost ${bet} charge`);
     }
     updateMinigameDisplay();
 }
@@ -627,10 +634,10 @@ function playQuickMath() {
     const answerInput = document.getElementById('math-answer');
     const bet = parseInt(betInput.value) || 50;
     const answer = parseInt(answerInput.value);
-    const player = getMinigamePlayer();
+    loadMinigameCharge();
     
-    if (!player || player.money < bet) {
-        alert('Not enough money!');
+    if (minigamesState.minigameCharge < bet) {
+        alert('Not enough minigame charge!');
         return;
     }
     
@@ -639,8 +646,8 @@ function playQuickMath() {
         return;
     }
     
-    player.money -= bet;
-    updateMinigameDisplay();
+    minigamesState.minigameCharge -= bet;
+    saveMinigameCharge();
     
     const resultDiv = document.getElementById('math-result');
     let win = 0;
@@ -650,12 +657,12 @@ function playQuickMath() {
     }
     
     if (win > 0) {
-        player.money += win;
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">Correct! Answer was ${window.currentMathAnswer}. WIN! +${win} money!</div>`;
-        addLog(`🔢 Quick Math: Won ${win} money!`);
+        addMinigameCharge(win);
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold;">Correct! Answer was ${window.currentMathAnswer}. WIN! +${win} charge!</div>`;
+        addLog(`🔢 Quick Math: Won ${win} charge!`);
     } else {
-        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Wrong! Answer was ${window.currentMathAnswer}. You said ${answer}. Lost ${bet} money</div>`;
-        addLog(`🔢 Quick Math: Lost ${bet} money`);
+        resultDiv.innerHTML = `<div style="color: #ff0000; font-weight: bold;">Wrong! Answer was ${window.currentMathAnswer}. You said ${answer}. Lost ${bet} charge</div>`;
+        addLog(`🔢 Quick Math: Lost ${bet} charge`);
     }
     updateMinigameDisplay();
 }
@@ -771,9 +778,7 @@ function saveMazeSkin() {
 
 function showMazeSkinsShop() {
     loadMazeSkin();
-    if (typeof loadFlappyPoints === 'function') {
-        loadFlappyPoints();
-    }
+    loadMinigameCharge();
     
     const overlay = document.createElement('div');
     overlay.id = 'maze-skins-shop';
@@ -803,7 +808,6 @@ function showMazeSkinsShop() {
         overflow-y: auto;
     `;
     
-    const flappyPoints = (typeof flappyGame !== 'undefined' && flappyGame.flappyPoints) ? flappyGame.flappyPoints : 0;
     shopContent.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h2 style="color: #FFD700; font-size: 2em; font-weight: bold;">🎨 Maze Game Skins Shop</h2>
@@ -820,7 +824,7 @@ function showMazeSkinsShop() {
             ">✕</button>
         </div>
         <div style="color: #FFD700; font-size: 1.2em; margin-bottom: 20px; font-weight: bold;">
-            🎮 Flappy Points: ${flappyPoints}
+            ⚡ Minigame Charge: ${minigamesState.minigameCharge}
         </div>
         <div id="maze-skin-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
         </div>
@@ -841,7 +845,7 @@ function showMazeSkinsShop() {
             opacity: ${skin.owned ? '1' : '0.7'};
         `;
         
-        const canBuy = flappyPoints >= skin.cost;
+        const canBuy = minigamesState.minigameCharge >= skin.cost;
         
         skinCard.innerHTML = `
             <div style="font-size: 4em; margin-bottom: 10px; color: ${skin.playerColor};">${skin.playerSymbol}</div>
@@ -859,7 +863,7 @@ function showMazeSkinsShop() {
                      ${mazeGameSkin === skinKey ? 'opacity: 0.5; cursor: not-allowed;' : ''}
                  ">${mazeGameSkin === skinKey ? 'CURRENT' : 'SELECT'}</button>` :
                 `<div style="color: #FFD700; font-weight: bold; margin-bottom: 10px;">
-                    Cost: 🎮 ${skin.cost} Flappy Points
+                    Cost: ⚡ ${skin.cost} Minigame Charge
                 </div>
                  <button onclick="buyMazeSkin('${skinKey}')" style="
                      background: ${canBuy ? '#FFD700' : '#666'};
@@ -870,7 +874,7 @@ function showMazeSkinsShop() {
                      font-weight: bold;
                      cursor: ${canBuy ? 'pointer' : 'not-allowed'};
                      opacity: ${canBuy ? '1' : '0.5'};
-                 ">${canBuy ? 'BUY' : 'NEED ' + skin.cost + ' POINTS'}</button>
+                 ">${canBuy ? 'BUY' : 'NEED ' + skin.cost + ' CHARGE'}</button>
                 `
             }
         `;
@@ -886,27 +890,21 @@ function buyMazeSkin(skinKey) {
     const skin = MAZE_SKINS[skinKey];
     if (!skin || skin.owned) return;
     
-    if (typeof loadFlappyPoints === 'function') {
-        loadFlappyPoints();
-    }
-    const flappyPoints = (typeof flappyGame !== 'undefined' && flappyGame.flappyPoints) ? flappyGame.flappyPoints : 0;
+    loadMinigameCharge();
     
-    if (flappyPoints < skin.cost) {
-        alert(`You need ${skin.cost} flappy points to buy this skin!`);
+    if (minigamesState.minigameCharge < skin.cost) {
+        alert(`You need ${skin.cost} minigame charge to buy this skin!`);
         return;
     }
     
-    if (typeof flappyGame !== 'undefined') {
-        flappyGame.flappyPoints -= skin.cost;
-        if (typeof saveFlappyPoints === 'function') {
-            saveFlappyPoints();
-        }
-    }
+    minigamesState.minigameCharge -= skin.cost;
+    saveMinigameCharge();
+    
     skin.owned = true;
     saveMazeSkin();
     
     if (typeof addLog === 'function') {
-        addLog(`🎨 Purchased ${skin.name} for ${skin.cost} flappy points!`);
+        addLog(`🎨 Purchased ${skin.name} for ${skin.cost} minigame charge!`);
     }
     
     // Refresh shop

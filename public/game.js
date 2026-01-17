@@ -1384,6 +1384,46 @@ function checkTaskCompletion(playerId) {
     }
 }
 
+// Complete task card when clicked
+function completeTaskCard(taskIndex) {
+    const player = gameState.players[gameState.playerId];
+    if (!player || taskIndex < 0 || taskIndex >= player.tasks.length) return;
+    
+    const task = player.tasks[taskIndex];
+    const ownsProperty = player.properties.some(prop => prop.name === task.propertyName && !prop.frozen);
+    const isCompleted = player.completedTasks.some(ct => ct.id === task.id);
+    
+    if (!ownsProperty) {
+        addLog("You don't own the required property yet!");
+        return;
+    }
+    
+    if (isCompleted) {
+        addLog("This task is already completed!");
+        return;
+    }
+    
+    // Complete the task
+    player.completedTasks.push(task);
+    addLog(`✅ You completed task: ${task.description}!`);
+    
+    // Remove task from tasks list
+    player.tasks.splice(taskIndex, 1);
+    
+    // Add new task if available
+    if (gameState.taskDeck.length > 0) {
+        player.tasks.push(gameState.taskDeck.pop());
+    }
+    
+    // Check win condition
+    if (player.completedTasks.length >= 4) {
+        endGame();
+    } else {
+        updateDisplay();
+    }
+}
+window.completeTaskCard = completeTaskCard;
+
 function updateDisplay() {
     // Save game state to localStorage for persistence
     try {
@@ -1556,17 +1596,20 @@ function updateCardsDisplay() {
     // Task cards - with completion indicators
     const taskCardsDiv = document.getElementById('task-cards');
     taskCardsDiv.innerHTML = '';
-    player.tasks.forEach(task => {
+    player.tasks.forEach((task, taskIndex) => {
         const isCompleted = player.completedTasks.some(ct => ct.id === task.id);
         const ownsProperty = player.properties.some(prop => prop.name === task.propertyName && !prop.frozen);
+        const canComplete = ownsProperty && !isCompleted && player.id === gameState.playerId;
         taskCardsDiv.innerHTML += `
-            <div class="card task-card ${isCompleted ? 'completed-task' : ''} ${ownsProperty && !isCompleted ? 'ready-to-complete' : ''}" style="font-weight: bold; position: relative;">
+            <div class="card task-card ${isCompleted ? 'completed-task' : ''} ${ownsProperty && !isCompleted ? 'ready-to-complete' : ''}" 
+                 style="font-weight: bold; position: relative; ${canComplete ? 'cursor: pointer;' : ''}" 
+                 ${canComplete ? `onclick="completeTaskCard(${taskIndex})"` : ''}>
                 ${isCompleted ? '<div style="position: absolute; top: 5px; right: 5px; font-size: 2em; z-index: 10;">✅</div>' : ''}
                 ${ownsProperty && !isCompleted ? '<div style="position: absolute; top: 5px; right: 5px; font-size: 2em; z-index: 10; color: #FFD700;">✓</div>' : ''}
                 <div class="card-title" style="font-weight: bold;">${task.description}</div>
                 <div class="card-description" style="font-weight: bold;">Property: ${task.propertyName}</div>
                 ${isCompleted ? '<div style="color: #51cf66; font-weight: bold; margin-top: 10px; font-size: 1.1em;">✅ COMPLETED!</div>' : ''}
-                ${ownsProperty && !isCompleted ? '<div style="color: #FFD700; font-weight: bold; margin-top: 10px; font-size: 1.1em;">✓ Ready to Complete!</div>' : ''}
+                ${ownsProperty && !isCompleted ? '<div style="color: #FFD700; font-weight: bold; margin-top: 10px; font-size: 1.1em;">✓ Click to Complete!</div>' : ''}
             </div>
         `;
     });

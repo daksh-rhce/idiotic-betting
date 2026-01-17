@@ -5,9 +5,11 @@ let adminPanelVisible = false;
 // Check if user is admin
 function checkAdminStatus() {
     const adminCode = localStorage.getItem('adminCode');
-    if (adminCode === 'iwanttobeanadminalot') {
+    if (adminCode === 'admin_1') {
         isAdmin = true;
-        showAdminPanel();
+        if (adminPanelVisible) {
+            showAdminPanel();
+        }
     }
 }
 
@@ -16,9 +18,10 @@ function redeemCode() {
     const codeInput = document.getElementById('redeem-code-input') || document.getElementById('redeem-code-input-game');
     const code = codeInput ? codeInput.value.trim() : '';
     
-    if (code === 'iwanttobeanadminalot') {
+    if (code === 'admin_1') {
         localStorage.setItem('adminCode', code);
         isAdmin = true;
+        adminPanelVisible = true;
         alert('🎉 Admin access granted! Admin panel unlocked!');
         showAdminPanel();
         if (codeInput) codeInput.value = '';
@@ -78,14 +81,40 @@ function showAdminPanel() {
     }
     adminPanel.style.display = 'block';
     adminPanelVisible = true;
+    // Hide the show button if it exists
+    const showBtn = document.getElementById('show-admin-panel-btn');
+    if (showBtn) showBtn.style.display = 'none';
 }
 
 function toggleAdminPanel() {
+    if (!isAdmin) return;
     const adminPanel = document.getElementById('admin-panel');
     if (adminPanel) {
         adminPanelVisible = !adminPanelVisible;
         adminPanel.style.display = adminPanelVisible ? 'block' : 'none';
+        // Show/hide the show button
+        showAdminPanelButton();
     }
+}
+
+// Show admin panel button (for when hidden)
+function showAdminPanelButton() {
+    if (!isAdmin) return;
+    let showBtn = document.getElementById('show-admin-panel-btn');
+    if (!showBtn) {
+        showBtn = document.createElement('button');
+        showBtn.id = 'show-admin-panel-btn';
+        showBtn.className = 'btn btn-small';
+        showBtn.textContent = '👑 Show Admin Panel';
+        showBtn.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 10000;';
+        showBtn.onclick = () => {
+            adminPanelVisible = true;
+            showAdminPanel();
+            showBtn.style.display = 'none';
+        };
+        document.body.appendChild(showBtn);
+    }
+    showBtn.style.display = adminPanelVisible ? 'none' : 'block';
 }
 
 // Admin functions
