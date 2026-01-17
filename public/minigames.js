@@ -660,8 +660,18 @@ function playColorGuessing(choice) {
 }
 
 // Minigame 10: Quick Math
+const mathGame = {
+    gameStarted: false,
+    gameOver: false
+};
+
 function initQuickMath() {
     const container = document.getElementById('minigame-container');
+    
+    // Reset game state
+    mathGame.gameStarted = false;
+    mathGame.gameOver = false;
+    
     const num1 = Math.floor(Math.random() * 50) + 1;
     const num2 = Math.floor(Math.random() * 50) + 1;
     const answer = num1 + num2;
@@ -671,10 +681,10 @@ function initQuickMath() {
     container.innerHTML = `
         <div class="minigame-math">
             <h2>🔢 Quick Math</h2>
-            <p>Solve: ${num1} + ${num2} = ?</p>
-            <input type="number" id="math-bet" min="10" value="50" placeholder="Bet amount">
-            <input type="number" id="math-answer" placeholder="Your answer">
-            <button class="btn btn-large" onclick="playQuickMath()">SUBMIT</button>
+            <p id="math-question">Solve: ${num1} + ${num2} = ?</p>
+            <input type="number" id="math-bet" min="10" value="50" placeholder="Bet amount" disabled>
+            <input type="number" id="math-answer" placeholder="Your answer" disabled>
+            <button class="btn btn-large" id="math-submit-btn" onclick="startQuickMathGame()">Start Game</button>
             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
                 <button class="btn btn-small" onclick="showMinigamesMenu()">← Back to Minigames</button>
                 <button class="btn btn-small" onclick="showMinigameSkinsShop('math')">🎨 Skins</button>
@@ -684,9 +694,53 @@ function initQuickMath() {
     `;
 }
 
-function playQuickMath() {
+function startQuickMathGame() {
     const betInput = document.getElementById('math-bet');
     const answerInput = document.getElementById('math-answer');
+    const submitBtn = document.getElementById('math-submit-btn');
+    
+    // Start the game
+    mathGame.gameStarted = true;
+    mathGame.gameOver = false;
+    
+    // Enable inputs and change button
+    if (betInput) betInput.disabled = false;
+    if (answerInput) answerInput.disabled = false;
+    if (submitBtn) {
+        submitBtn.textContent = 'SUBMIT';
+        submitBtn.onclick = playQuickMath;
+    }
+    
+    // Clear result
+    const resultDiv = document.getElementById('math-result');
+    if (resultDiv) resultDiv.innerHTML = '';
+    
+    // Generate new question
+    const num1 = Math.floor(Math.random() * 50) + 1;
+    const num2 = Math.floor(Math.random() * 50) + 1;
+    const answer = num1 + num2;
+    window.currentMathAnswer = answer;
+    
+    const questionEl = document.getElementById('math-question');
+    if (questionEl) questionEl.textContent = `Solve: ${num1} + ${num2} = ?`;
+}
+
+function playQuickMath() {
+    // Check if game is already over
+    if (mathGame.gameOver) {
+        alert('Game finished! Click "Start Game" to play again.');
+        return;
+    }
+    
+    // Check if game has started
+    if (!mathGame.gameStarted) {
+        startQuickMathGame();
+        return;
+    }
+    
+    const betInput = document.getElementById('math-bet');
+    const answerInput = document.getElementById('math-answer');
+    const submitBtn = document.getElementById('math-submit-btn');
     const bet = parseInt(betInput.value) || 50;
     const answer = parseInt(answerInput.value);
     loadMinigameCharge();
@@ -699,6 +753,18 @@ function playQuickMath() {
     if (!answer) {
         alert('Please enter an answer!');
         return;
+    }
+    
+    // Mark game as over
+    mathGame.gameOver = true;
+    mathGame.gameStarted = false;
+    
+    // Disable inputs and change button
+    if (betInput) betInput.disabled = true;
+    if (answerInput) answerInput.disabled = true;
+    if (submitBtn) {
+        submitBtn.textContent = 'Start Game';
+        submitBtn.onclick = startQuickMathGame;
     }
     
     minigamesState.minigameCharge -= bet;
@@ -3377,6 +3443,7 @@ if (typeof window !== 'undefined') {
     window.startBlackjack = startBlackjack;
     window.playColorGuessing = playColorGuessing;
     window.playQuickMath = playQuickMath;
+    window.startQuickMathGame = startQuickMathGame;
     window.startMazeGame = startMazeGame;
     window.startSnakeGame = startSnakeGame;
     window.startBreakoutGame = startBreakoutGame;
