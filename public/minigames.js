@@ -1482,7 +1482,9 @@ function mazeGameLoop() {
     updateMazeDisplay();
     
     if (!mazeGame.gameOver) {
-        requestAnimationFrame(mazeGameLoop);
+        mazeGame.gameLoopRunning = requestAnimationFrame(mazeGameLoop);
+    } else {
+        mazeGame.gameLoopRunning = null;
     }
 }
 
