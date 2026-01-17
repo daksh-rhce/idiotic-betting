@@ -2347,14 +2347,19 @@ let pacManGame = {
     ctx: null,
     player: { x: 50, y: 50, size: 20, direction: 'right', nextDirection: 'right' },
     dots: [],
+    bigOrbs: [],
     ghosts: [],
+    walls: [],
+    maze: null,
     score: 0,
-    money: 0,
+    charge: 0,
     lives: 3,
+    level: 1,
     gameStarted: false,
     gameOver: false,
     keys: {},
-    gridSize: 20
+    gridSize: 20,
+    cellSize: 20
 };
 
 function startPacManGame() {
@@ -2411,24 +2416,41 @@ function handlePacManKeyDown(e) {
     e.preventDefault();
 }
 
+function isPacManWallCollision(x, y, size) {
+    return pacManGame.walls.some(wall => 
+        x < wall.x + wall.width &&
+        x + size > wall.x &&
+        y < wall.y + wall.height &&
+        y + size > wall.y
+    );
+}
+
 function updatePacManGame() {
     if (!pacManGame.gameStarted || pacManGame.gameOver) return;
     
     const speed = 3;
     pacManGame.player.direction = pacManGame.player.nextDirection;
     
-    // Move player
+    // Move player with wall collision
+    let newX = pacManGame.player.x;
+    let newY = pacManGame.player.y;
+    
     if (pacManGame.player.direction === 'up') {
-        pacManGame.player.y = Math.max(0, pacManGame.player.y - speed);
+        newY = Math.max(0, pacManGame.player.y - speed);
     } else if (pacManGame.player.direction === 'down') {
-        pacManGame.player.y = Math.min(pacManGame.canvas.height - pacManGame.player.size, pacManGame.player.y + speed);
+        newY = Math.min(pacManGame.canvas.height - pacManGame.player.size, pacManGame.player.y + speed);
     } else if (pacManGame.player.direction === 'left') {
-        pacManGame.player.x = Math.max(0, pacManGame.player.x - speed);
+        newX = Math.max(0, pacManGame.player.x - speed);
     } else if (pacManGame.player.direction === 'right') {
-        pacManGame.player.x = Math.min(pacManGame.canvas.width - pacManGame.player.size, pacManGame.player.x + speed);
+        newX = Math.min(pacManGame.canvas.width - pacManGame.player.size, pacManGame.player.x + speed);
     }
     
-    // Collect dots
+    if (!isPacManWallCollision(newX, newY, pacManGame.player.size)) {
+        pacManGame.player.x = newX;
+        pacManGame.player.y = newY;
+    }
+    
+    // Collect dots (worth 1/8 charge each)
     pacManGame.dots.forEach(dot => {
         if (!dot.collected) {
             const dx = dot.x - (pacManGame.player.x + pacManGame.player.size / 2);
@@ -2438,32 +2460,87 @@ function updatePacManGame() {
             if (distance < 15) {
                 dot.collected = true;
                 pacManGame.score += 10;
-                pacManGame.money += 2;
-                const player = getMinigamePlayer();
-                if (player) player.money += 2;
-                updateMinigameDisplay();
+                pacManGame.charge += 1/8; // 1/8 charge per dot
                 updatePacManDisplay();
             }
         }
     });
     
-    // Move ghosts
-    pacManGame.ghosts.forEach(ghost => {
-        ghost.x += ghost.dx;
-        ghost.y += ghost.dy;
-        
-        // Bounce off walls
-        if (ghost.x <= 0 || ghost.x >= pacManGame.canvas.width - ghost.size) {
-            ghost.dx = -ghost.dx;
+    // Collect big orbs (worth 5 charge each)
+    pacManGame.bigOrbs.forEach(orb => {
+        if (!orb.collected) {
+            const dx = orb.x - (pacManGame.player.x + pacManGame.player.size / 2);
+            const dy = orb.y - (pacManGame.player.y + pacManGame.player.size / 2);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < 15) {
+                orb.collected = true;
+                pacManGame.score += 50;
+                pacManGame.charge += 5; // 5 charge per big orb
+                updatePacManDisplay();
+            }
         }
-        if (ghost.y <= 0 || ghost.y >= pacManGame.canvas.height - ghost.size) {
-            ghost.dy = -ghost.dy;
+    });
+    
+    // Move ghosts (follow maze paths)
+    pacManGame.ghosts.forEach(ghost => {
+        // Simple AI: try to move towards player, but follow maze
+        const dx = pacManGame.player.x - ghost.x;
+        const dy = pacManGame.player.y - ghost.y;
+        
+        // Try to move in direction of player
+        const directions = [];
+        if (Math.abs(dx) > Math.abs(dy)) {
+            if (dx > 0) directions.push('right');
+            else directions.push('left');
+        } else {
+            if (dy > 0) directions.push('down');
+            else directions.push('up');
+        }
+        
+        // Try to move in preferred direction
+        let moved = false;
+        for (const dir of directions) {
+            let testX = ghost.x;
+            let testY = ghost.y;
+            if (dir === 'up') testY -= speed;
+            else if (dir === 'down') testY += speed;
+            else if (dir === 'left') testX -= speed;
+            else if (dir === 'right') testX += speed;
+            
+            if (!isPacManWallCollision(testX, testY, ghost.size)) {
+                ghost.x = testX;
+                ghost.y = testY;
+                ghost.direction = dir;
+                moved = true;
+                break;
+            }
+        }
+        
+        // If couldn't move, try random direction
+        if (!moved) {
+            const randomDirs = ['up', 'down', 'left', 'right'];
+            for (const dir of randomDirs.sort(() => Math.random() - 0.5)) {
+                let testX = ghost.x;
+                let testY = ghost.y;
+                if (dir === 'up') testY -= speed;
+                else if (dir === 'down') testY += speed;
+                else if (dir === 'left') testX -= speed;
+                else if (dir === 'right') testX += speed;
+                
+                if (!isPacManWallCollision(testX, testY, ghost.size)) {
+                    ghost.x = testX;
+                    ghost.y = testY;
+                    ghost.direction = dir;
+                    break;
+                }
+            }
         }
         
         // Check collision with player
-        const dx = ghost.x - pacManGame.player.x;
-        const dy = ghost.y - pacManGame.player.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const dx2 = ghost.x - pacManGame.player.x;
+        const dy2 = ghost.y - pacManGame.player.y;
+        const distance = Math.sqrt(dx2 * dx2 + dy2 * dy2);
         
         if (distance < (ghost.size + pacManGame.player.size) / 2) {
             pacManGame.lives--;
@@ -2472,21 +2549,31 @@ function updatePacManGame() {
                 endPacManGame();
             } else {
                 // Reset position
-                pacManGame.player.x = 50;
-                pacManGame.player.y = 50;
+                pacManGame.player.x = pacManGame.cellSize + 10;
+                pacManGame.player.y = pacManGame.cellSize + 10;
             }
         }
     });
     
-    // Win condition
-    if (pacManGame.dots.every(d => d.collected)) {
-        pacManGame.gameOver = true;
-        const bonus = 100;
-        pacManGame.money += bonus;
-        const player = getMinigamePlayer();
-        if (player) player.money += bonus;
-        updateMinigameDisplay();
-        endPacManGame();
+    // Win condition: all dots collected
+    if (pacManGame.dots.every(d => d.collected) && pacManGame.bigOrbs.every(o => o.collected)) {
+        // Round charge to nearest integer and add it
+        const roundedCharge = Math.round(pacManGame.charge);
+        addMinigameCharge(roundedCharge);
+        
+        // Move to next level
+        pacManGame.level++;
+        const levelChange = Math.random() < 0.5 ? 'ghost' : 'size';
+        if (levelChange === 'ghost') {
+            // Add 1 more ghost
+        } else {
+            // Make map 50% bigger (scale canvas)
+            pacManGame.canvas.width = Math.min(900, Math.floor(pacManGame.canvas.width * 1.5));
+            pacManGame.canvas.height = Math.min(600, Math.floor(pacManGame.canvas.height * 1.5));
+        }
+        
+        generatePacManMaze();
+        updatePacManDisplay();
     }
 }
 
@@ -2541,22 +2628,27 @@ function drawPacManGame() {
 }
 
 function updatePacManDisplay() {
+    const levelEl = document.getElementById('pacman-level');
     const scoreEl = document.getElementById('pacman-score');
-    const moneyEl = document.getElementById('pacman-money');
+    const chargeEl = document.getElementById('pacman-charge');
     const livesEl = document.getElementById('pacman-lives');
+    if (levelEl) levelEl.textContent = pacManGame.level;
     if (scoreEl) scoreEl.textContent = pacManGame.score;
-    if (moneyEl) moneyEl.textContent = pacManGame.money;
+    if (chargeEl) chargeEl.textContent = Math.round(pacManGame.charge * 100) / 100;
     if (livesEl) livesEl.textContent = pacManGame.lives;
 }
 
 function endPacManGame() {
     const resultDiv = document.getElementById('pacman-result');
+    const roundedCharge = Math.round(pacManGame.charge);
     if (resultDiv) {
-        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${pacManGame.money} money!</div>`;
+        resultDiv.innerHTML = `<div style="color: #00ff00; font-weight: bold; font-size: 1.5em;">Game Over! Earned ${roundedCharge} minigame charge!</div>`;
     }
     if (typeof addLog === 'function') {
-        addLog(`👻 Pac-Man: Score ${pacManGame.score}, Earned ${pacManGame.money} money!`);
+        addLog(`👻 Pac-Man: Score ${pacManGame.score}, Level ${pacManGame.level}, Earned ${roundedCharge} minigame charge!`);
     }
+    // Add rounded charge
+    addMinigameCharge(roundedCharge);
 }
 
 function pacManGameLoop() {

@@ -244,7 +244,43 @@ if (typeof window !== 'undefined') {
     window.adminInfiniteChaosCards = adminInfiniteChaosCards;
     window.adminAddRandomProperty = adminAddRandomProperty;
     window.adminAddAllProperties = adminAddAllProperties;
+    window.adminAddMinigameCharge = adminAddMinigameCharge;
+    window.adminSetMinigameCharge = adminSetMinigameCharge;
     window.logout = logout;
     window.toggleAccountTab = toggleAccountTab;
+}
+
+function adminAddMinigameCharge(amount) {
+    if (!isAdmin) return;
+    if (typeof loadMinigameCharge === 'function') {
+        loadMinigameCharge();
+    }
+    if (typeof minigamesState !== 'undefined') {
+        minigamesState.minigameCharge += amount;
+        if (typeof saveMinigameCharge === 'function') {
+            saveMinigameCharge();
+        }
+        if (typeof updateMinigameChargeDisplay === 'function') {
+            updateMinigameChargeDisplay();
+        }
+        addLog(`👑 Admin: Added ${amount} minigame charge`);
+    }
+}
+
+function adminSetMinigameCharge(amount) {
+    if (!isAdmin) return;
+    if (typeof loadMinigameCharge === 'function') {
+        loadMinigameCharge();
+    }
+    if (typeof minigamesState !== 'undefined') {
+        minigamesState.minigameCharge = amount;
+        if (typeof saveMinigameCharge === 'function') {
+            saveMinigameCharge();
+        }
+        if (typeof updateMinigameChargeDisplay === 'function') {
+            updateMinigameChargeDisplay();
+        }
+        addLog(`👑 Admin: Set minigame charge to ${amount}`);
+    }
 }
 
