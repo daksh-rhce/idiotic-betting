@@ -616,20 +616,37 @@ if (gameScreen) {
 }
 
 // Flappy Points Management
+// Get current username for per-user storage
+function getCurrentUsername() {
+    try {
+        const user = localStorage.getItem('user');
+        if (user) {
+            const userObj = JSON.parse(user);
+            return userObj.username || 'default';
+        }
+    } catch (e) {
+        console.error('Error getting username:', e);
+    }
+    return 'default';
+}
+
 function loadFlappyPoints() {
-    const saved = localStorage.getItem('flappyPoints');
+    const username = getCurrentUsername();
+    const saved = localStorage.getItem(`flappyPoints_${username}`);
     if (saved) {
         flappyGame.flappyPoints = parseInt(saved) || 0;
     }
 }
 
 function saveFlappyPoints() {
-    localStorage.setItem('flappyPoints', flappyGame.flappyPoints.toString());
+    const username = getCurrentUsername();
+    localStorage.setItem(`flappyPoints_${username}`, flappyGame.flappyPoints.toString());
 }
 
 // Theme management
 function loadOwnedThemes() {
-    const saved = localStorage.getItem('flappyThemes');
+    const username = getCurrentUsername();
+    const saved = localStorage.getItem(`flappyThemes_${username}`);
     if (saved) {
         const owned = JSON.parse(saved);
         Object.keys(FLAPPY_THEMES).forEach(key => {
@@ -639,7 +656,7 @@ function loadOwnedThemes() {
         });
     }
     // Load current theme
-    const currentTheme = localStorage.getItem('flappyCurrentTheme');
+    const currentTheme = localStorage.getItem(`flappyCurrentTheme_${username}`);
     if (currentTheme && FLAPPY_THEMES[currentTheme]) {
         flappyGame.theme = currentTheme;
     }
@@ -648,14 +665,15 @@ function loadOwnedThemes() {
 }
 
 function saveOwnedThemes() {
+    const username = getCurrentUsername();
     const owned = {};
     Object.keys(FLAPPY_THEMES).forEach(key => {
         if (FLAPPY_THEMES[key].owned) {
             owned[key] = true;
         }
     });
-    localStorage.setItem('flappyThemes', JSON.stringify(owned));
-    localStorage.setItem('flappyCurrentTheme', flappyGame.theme);
+    localStorage.setItem(`flappyThemes_${username}`, JSON.stringify(owned));
+    localStorage.setItem(`flappyCurrentTheme_${username}`, flappyGame.theme);
     saveFlappyPoints();
 }
 

@@ -59,7 +59,7 @@ function showAdminPanel() {
                     <button class="btn btn-small" onclick="adminSetFlappyPoints(999999)">Set to 999,999</button>
                 </div>
                 <div class="admin-section">
-                    <h4>Minigame Charge</h4>
+                    <h4>Minigame Charge / Points</h4>
                     <button class="btn btn-small" onclick="adminAddMinigameCharge(1000)">+1000 Charge</button>
                     <button class="btn btn-small" onclick="adminAddMinigameCharge(5000)">+5000 Charge</button>
                     <button class="btn btn-small" onclick="adminSetMinigameCharge(999999)">Set to 999,999</button>
@@ -235,11 +235,12 @@ function hideAccountTab() {
 
 function logout() {
     if (confirm('Are you sure you want to logout?')) {
+        const username = currentUser ? currentUser.username : 'default';
         localStorage.removeItem('user');
-        localStorage.removeItem('playerName');
-        localStorage.removeItem('gameState');
-        localStorage.removeItem('gamePhase');
-        localStorage.removeItem('gameRound');
+        localStorage.removeItem(`playerName_${username}`);
+        localStorage.removeItem(`gameState_${username}`);
+        localStorage.removeItem(`gamePhase_${username}`);
+        localStorage.removeItem(`gameRound_${username}`);
         currentUser = null;
         playerName = '';
         showScreen('login-screen');

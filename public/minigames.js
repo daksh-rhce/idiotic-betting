@@ -5,18 +5,34 @@ let minigamesState = {
     minigameCharge: 0  // New separate currency for minigames
 };
 
-// Load minigame charge from localStorage
+// Get current username for per-user storage
+function getCurrentUsername() {
+    try {
+        const user = localStorage.getItem('user');
+        if (user) {
+            const userObj = JSON.parse(user);
+            return userObj.username || 'default';
+        }
+    } catch (e) {
+        console.error('Error getting username:', e);
+    }
+    return 'default';
+}
+
+// Load minigame charge from localStorage (per username)
 function loadMinigameCharge() {
-    const saved = localStorage.getItem('minigameCharge');
+    const username = getCurrentUsername();
+    const saved = localStorage.getItem(`minigameCharge_${username}`);
     if (saved) {
         minigamesState.minigameCharge = parseInt(saved) || 0;
     }
     updateMinigameChargeDisplay();
 }
 
-// Save minigame charge to localStorage
+// Save minigame charge to localStorage (per username)
 function saveMinigameCharge() {
-    localStorage.setItem('minigameCharge', minigamesState.minigameCharge.toString());
+    const username = getCurrentUsername();
+    localStorage.setItem(`minigameCharge_${username}`, minigamesState.minigameCharge.toString());
     updateMinigameChargeDisplay();
 }
 
@@ -784,12 +800,13 @@ const MAZE_SKINS = {
 let mazeGameSkin = 'default';
 
 function loadMazeSkin() {
-    const saved = localStorage.getItem('mazeGameSkin');
+    const username = getCurrentUsername();
+    const saved = localStorage.getItem(`mazeGameSkin_${username}`);
     if (saved && MAZE_SKINS[saved]) {
         mazeGameSkin = saved;
     }
     // Load owned skins
-    const savedOwned = localStorage.getItem('mazeSkins');
+    const savedOwned = localStorage.getItem(`mazeSkins_${username}`);
     if (savedOwned) {
         try {
             const owned = JSON.parse(savedOwned);
@@ -805,14 +822,15 @@ function loadMazeSkin() {
 }
 
 function saveMazeSkin() {
-    localStorage.setItem('mazeGameSkin', mazeGameSkin);
+    const username = getCurrentUsername();
+    localStorage.setItem(`mazeGameSkin_${username}`, mazeGameSkin);
     const owned = {};
     Object.keys(MAZE_SKINS).forEach(key => {
         if (MAZE_SKINS[key].owned) {
             owned[key] = true;
         }
     });
-    localStorage.setItem('mazeSkins', JSON.stringify(owned));
+    localStorage.setItem(`mazeSkins_${username}`, JSON.stringify(owned));
 }
 
 function showMazeSkinsShop() {
@@ -1078,26 +1096,28 @@ function generateMazeLevel(level) {
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
             const cell = maze[y][x];
+            const wallThickness = 3; // Match scary cat game style
             if (cell.walls.top) {
-                mazeGame.walls.push({ x: x * cellSize, y: y * cellSize, width: cellSize, height: 2 });
+                mazeGame.walls.push({ x: x * cellSize, y: y * cellSize, width: cellSize, height: wallThickness });
             }
             if (cell.walls.left) {
-                mazeGame.walls.push({ x: x * cellSize, y: y * cellSize, width: 2, height: cellSize });
+                mazeGame.walls.push({ x: x * cellSize, y: y * cellSize, width: wallThickness, height: cellSize });
             }
             if (cell.walls.bottom) {
-                mazeGame.walls.push({ x: x * cellSize, y: (y + 1) * cellSize - 2, width: cellSize, height: 2 });
+                mazeGame.walls.push({ x: x * cellSize, y: (y + 1) * cellSize - wallThickness, width: cellSize, height: wallThickness });
             }
             if (cell.walls.right) {
-                mazeGame.walls.push({ x: (x + 1) * cellSize - 2, y: y * cellSize, width: 2, height: cellSize });
+                mazeGame.walls.push({ x: (x + 1) * cellSize - wallThickness, y: y * cellSize, width: wallThickness, height: cellSize });
             }
         }
     }
     
-    // Add outer walls
-    mazeGame.walls.push({ x: 0, y: 0, width: canvas.width, height: 2 });
-    mazeGame.walls.push({ x: 0, y: 0, width: 2, height: canvas.height });
-    mazeGame.walls.push({ x: canvas.width - 2, y: 0, width: 2, height: canvas.height });
-    mazeGame.walls.push({ x: 0, y: canvas.height - 2, width: canvas.width, height: 2 });
+    // Add outer walls (match scary cat game style)
+    const wallThickness = 3;
+    mazeGame.walls.push({ x: 0, y: 0, width: canvas.width, height: wallThickness });
+    mazeGame.walls.push({ x: 0, y: 0, width: wallThickness, height: canvas.height });
+    mazeGame.walls.push({ x: canvas.width - wallThickness, y: 0, width: wallThickness, height: canvas.height });
+    mazeGame.walls.push({ x: 0, y: canvas.height - wallThickness, width: canvas.width, height: wallThickness });
     
     // Place player at start with current skin
     const skin = MAZE_SKINS[mazeGameSkin] || MAZE_SKINS.default;
@@ -2498,26 +2518,28 @@ function generatePacManMaze() {
     for (let y = 0; y < rows; y++) {
         for (let x = 0; x < cols; x++) {
             const cell = maze[y][x];
+            const wallThickness = 4; // Wider walls for easier movement
             if (cell.walls.top) {
-                pacManGame.walls.push({ x: x * pacManGame.cellSize, y: y * pacManGame.cellSize, width: pacManGame.cellSize, height: 2 });
+                pacManGame.walls.push({ x: x * pacManGame.cellSize, y: y * pacManGame.cellSize, width: pacManGame.cellSize, height: wallThickness });
             }
             if (cell.walls.left) {
-                pacManGame.walls.push({ x: x * pacManGame.cellSize, y: y * pacManGame.cellSize, width: 2, height: pacManGame.cellSize });
+                pacManGame.walls.push({ x: x * pacManGame.cellSize, y: y * pacManGame.cellSize, width: wallThickness, height: pacManGame.cellSize });
             }
             if (cell.walls.bottom) {
-                pacManGame.walls.push({ x: x * pacManGame.cellSize, y: (y + 1) * pacManGame.cellSize - 2, width: pacManGame.cellSize, height: 2 });
+                pacManGame.walls.push({ x: x * pacManGame.cellSize, y: (y + 1) * pacManGame.cellSize - wallThickness, width: pacManGame.cellSize, height: wallThickness });
             }
             if (cell.walls.right) {
-                pacManGame.walls.push({ x: (x + 1) * pacManGame.cellSize - 2, y: y * pacManGame.cellSize, width: 2, height: pacManGame.cellSize });
+                pacManGame.walls.push({ x: (x + 1) * pacManGame.cellSize - wallThickness, y: y * pacManGame.cellSize, width: wallThickness, height: pacManGame.cellSize });
             }
         }
     }
     
-    // Add outer walls
-    pacManGame.walls.push({ x: 0, y: 0, width: canvas.width, height: 2 });
-    pacManGame.walls.push({ x: 0, y: 0, width: 2, height: canvas.height });
-    pacManGame.walls.push({ x: canvas.width - 2, y: 0, width: 2, height: canvas.height });
-    pacManGame.walls.push({ x: 0, y: canvas.height - 2, width: canvas.width, height: 2 });
+    // Add outer walls (wider)
+    const wallThickness = 4;
+    pacManGame.walls.push({ x: 0, y: 0, width: canvas.width, height: wallThickness });
+    pacManGame.walls.push({ x: 0, y: 0, width: wallThickness, height: canvas.height });
+    pacManGame.walls.push({ x: canvas.width - wallThickness, y: 0, width: wallThickness, height: canvas.height });
+    pacManGame.walls.push({ x: 0, y: canvas.height - wallThickness, width: canvas.width, height: wallThickness });
     
     // Place dots in all walkable areas (not in walls)
     pacManGame.dots = [];
@@ -2573,6 +2595,13 @@ function generatePacManMaze() {
     // Place player at start
     pacManGame.player.x = pacManGame.cellSize + 10;
     pacManGame.player.y = pacManGame.cellSize + 10;
+    // Ensure player always has a valid direction
+    if (!pacManGame.player.direction || pacManGame.player.direction === '') {
+        pacManGame.player.direction = 'right';
+    }
+    if (!pacManGame.player.nextDirection || pacManGame.player.nextDirection === '') {
+        pacManGame.player.nextDirection = pacManGame.player.direction;
+    }
 }
 
 function generatePacManMazeAlgorithm(cols, rows) {
@@ -2631,18 +2660,25 @@ function generatePacManMazeAlgorithm(cols, rows) {
 }
 
 function handlePacManKeyDown(e) {
-    if (!pacManGame.gameStarted || pacManGame.gameOver) return;
+    // Only handle if Pac-Man game is active and we're in the game screen
+    const pacManCanvas = document.getElementById('pacman-canvas');
+    if (!pacManGame.gameStarted || pacManGame.gameOver || !pacManCanvas) return;
+    
+    // Only prevent default if the key is relevant to Pac-Man
     const key = e.key;
     if (key === 'ArrowUp' || key === 'w' || key === 'W') {
         pacManGame.player.nextDirection = 'up';
+        e.preventDefault();
     } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
         pacManGame.player.nextDirection = 'down';
+        e.preventDefault();
     } else if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
         pacManGame.player.nextDirection = 'left';
+        e.preventDefault();
     } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
         pacManGame.player.nextDirection = 'right';
+        e.preventDefault();
     }
-    e.preventDefault();
 }
 
 function isPacManWallCollision(x, y, size) {
@@ -2657,10 +2693,35 @@ function isPacManWallCollision(x, y, size) {
 function updatePacManGame() {
     if (!pacManGame.gameStarted || pacManGame.gameOver) return;
     
-    const speed = 3;
-    pacManGame.player.direction = pacManGame.player.nextDirection;
+    const speed = 2; // Slightly slower for better control
     
-    // Move player with wall collision
+    // Ensure player always has a direction
+    if (!pacManGame.player.direction || pacManGame.player.direction === '') {
+        pacManGame.player.direction = 'right';
+    }
+    
+    // Try to change direction if nextDirection is set and different
+    if (pacManGame.player.nextDirection && pacManGame.player.nextDirection !== pacManGame.player.direction) {
+        // Check if we can change direction
+        let testX = pacManGame.player.x;
+        let testY = pacManGame.player.y;
+        
+        if (pacManGame.player.nextDirection === 'up') {
+            testY = pacManGame.player.y - speed;
+        } else if (pacManGame.player.nextDirection === 'down') {
+            testY = pacManGame.player.y + speed;
+        } else if (pacManGame.player.nextDirection === 'left') {
+            testX = pacManGame.player.x - speed;
+        } else if (pacManGame.player.nextDirection === 'right') {
+            testX = pacManGame.player.x + speed;
+        }
+        
+        if (!isPacManWallCollision(testX, testY, pacManGame.player.size)) {
+            pacManGame.player.direction = pacManGame.player.nextDirection;
+        }
+    }
+    
+    // Constantly move player in current direction
     let newX = pacManGame.player.x;
     let newY = pacManGame.player.y;
     
@@ -2677,6 +2738,31 @@ function updatePacManGame() {
     if (!isPacManWallCollision(newX, newY, pacManGame.player.size)) {
         pacManGame.player.x = newX;
         pacManGame.player.y = newY;
+    } else {
+        // If can't move in current direction, try to continue in a valid direction
+        // Try all four directions to find a valid path
+        const directions = ['up', 'down', 'left', 'right'];
+        let foundPath = false;
+        for (const dir of directions) {
+            let testX2 = pacManGame.player.x;
+            let testY2 = pacManGame.player.y;
+            if (dir === 'up') testY2 = Math.max(0, pacManGame.player.y - speed);
+            else if (dir === 'down') testY2 = Math.min(pacManGame.canvas.height - pacManGame.player.size, pacManGame.player.y + speed);
+            else if (dir === 'left') testX2 = Math.max(0, pacManGame.player.x - speed);
+            else if (dir === 'right') testX2 = Math.min(pacManGame.canvas.width - pacManGame.player.size, pacManGame.player.x + speed);
+            
+            if (!isPacManWallCollision(testX2, testY2, pacManGame.player.size)) {
+                pacManGame.player.direction = dir;
+                pacManGame.player.x = testX2;
+                pacManGame.player.y = testY2;
+                foundPath = true;
+                break;
+            }
+        }
+        if (!foundPath) {
+            // Truly stuck - reset nextDirection but keep trying current direction
+            pacManGame.player.nextDirection = pacManGame.player.direction;
+        }
     }
     
     // Collect dots (worth 1/8 charge each)

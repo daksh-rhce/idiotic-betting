@@ -149,10 +149,8 @@ async function handleRegister() {
         return;
     }
     
-    // Clear any existing game state for fresh start
-    localStorage.removeItem('gameState');
-    localStorage.removeItem('gamePhase');
-    localStorage.removeItem('gameRound');
+    // Clear any existing game state for fresh start (will be per username after login)
+    // Don't clear here - will be cleared per username after registration
     
     try {
         const response = await fetch('/api/register', {
@@ -255,9 +253,9 @@ async function handleLogin() {
             // Don't save password - only username
             localStorage.setItem('user', JSON.stringify({ username }));
             
-            // Check if user wants to continue existing game
-            const savedGameState = localStorage.getItem('gameState');
-            const savedPhase = localStorage.getItem('gamePhase');
+            // Check if user wants to continue existing game (per username)
+            const savedGameState = localStorage.getItem(`gameState_${username}`);
+            const savedPhase = localStorage.getItem(`gamePhase_${username}`);
             
             if (savedGameState && savedPhase && savedPhase !== 'setup') {
                 const continueGame = confirm('You have a game in progress. Continue? (Cancel to start new game)');
@@ -266,7 +264,7 @@ async function handleLogin() {
                         const restored = JSON.parse(savedGameState);
                         if (restored.players && restored.players.length > 0) {
                             Object.assign(gameState, restored);
-                            playerName = localStorage.getItem('playerName') || 'You';
+                            playerName = localStorage.getItem(`playerName_${username}`) || 'You';
                             showScreen('game-screen');
                             updateDisplay();
                             addLog('Game restored from previous session!');
@@ -277,9 +275,9 @@ async function handleLogin() {
                     }
                 } else {
                     // Clear game state for fresh start
-                    localStorage.removeItem('gameState');
-                    localStorage.removeItem('gamePhase');
-                    localStorage.removeItem('gameRound');
+                    localStorage.removeItem(`gameState_${username}`);
+                    localStorage.removeItem(`gamePhase_${username}`);
+                    localStorage.removeItem(`gameRound_${username}`);
                 }
             }
             
@@ -300,7 +298,8 @@ function setPlayerName() {
     }
     
     playerName = name;
-    localStorage.setItem('playerName', playerName);
+    const username = currentUser ? currentUser.username : 'default';
+    localStorage.setItem(`playerName_${username}`, playerName);
     showScreen('mode-screen');
 }
 

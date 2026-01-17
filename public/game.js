@@ -1,3 +1,17 @@
+// Get current username for per-user storage
+function getCurrentUsername() {
+    try {
+        const user = localStorage.getItem('user');
+        if (user) {
+            const userObj = JSON.parse(user);
+            return userObj.username || 'default';
+        }
+    } catch (e) {
+        console.error('Error getting username:', e);
+    }
+    return 'default';
+}
+
 // Game State
 let gameState = {
     players: [],
@@ -177,10 +191,25 @@ function shuffleDeck(deck) {
 
 // Show Task Selection Screen
 function showTaskSelection() {
+    // Ensure task deck is initialized
+    if (!gameState.taskDeck || gameState.taskDeck.length === 0) {
+        console.error('Task deck not initialized! Reinitializing...');
+        initializeDecks();
+    }
+    
     // Show 10 random task cards for selection
     const availableTasks = [...gameState.taskDeck].slice(0, 10);
     const grid = document.getElementById('task-selection-grid');
+    if (!grid) {
+        console.error('Task selection grid not found!');
+        return;
+    }
     grid.innerHTML = '';
+    
+    if (availableTasks.length === 0) {
+        grid.innerHTML = '<div style="color: #FFD700; font-weight: bold; padding: 20px;">No task cards available! Please restart the game.</div>';
+        return;
+    }
     
     availableTasks.forEach((task, index) => {
         const card = document.createElement('div');
@@ -593,8 +622,16 @@ function endAuction() {
         gameState.propertyDeck.unshift(gameState.currentAuction);
     } else {
         const winner = gameState.players.find(p => p.id === gameState.highestBidder);
+        if (!winner) {
+            addLog("Error: Winner not found! Property discarded.");
+            gameState.propertyDeck.unshift(gameState.currentAuction);
+            gameState.currentAuction = null;
+            gameState.highestBidder = null;
+            return;
+        }
+        
         const oldMoney = winner.money;
-        winner.money -= gameState.currentBid;
+        winner.money = Math.max(0, winner.money - gameState.currentBid); // Prevent negative money
         winner.properties.push(gameState.currentAuction);
         
         addLog(`🏆 ${winner.name} wins ${gameState.currentAuction.name} for ${gameState.currentBid}!`);
@@ -621,6 +658,14 @@ function endAuction() {
         // Auto-complete tasks when property is owned
         checkTaskCompletion(gameState.highestBidder);
     }
+    
+    // Clear auction state
+    gameState.currentAuction = null;
+    gameState.highestBidder = null;
+    gameState.currentBid = 50;
+    gameState.biddingOrder = [];
+    gameState.currentBidderIndex = 0;
+    gameState.biddingHistory = [];
     
     // Move to action phase - start with first player
     gameState.currentPhase = 'action';
@@ -872,7 +917,7 @@ function executeChaosCardEffect(player, card, target) {
         case "Petty Crime, Big Smile":
             if (target) {
                 if (target.money >= 100) {
-                    target.money -= 100;
+                    target.money = Math.max(0, target.money - 100);
                     player.money += 100;
                     addLog(`💰 ${player.name} stole 100 from ${target.name}!`);
                     addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
@@ -900,7 +945,7 @@ function executeChaosCardEffect(player, card, target) {
         case "Unexpected Fine":
             if (target) {
                 if (target.money >= 200) {
-                    target.money -= 200;
+                    target.money = Math.max(0, target.money - 200);
                     player.money += 200;
                     addLog(`💰 ${target.name} paid 200 to ${player.name}!`);
                     addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
@@ -1037,8 +1082,13 @@ function executeChaosCardEffect(player, card, target) {
             }
             break;
         case "Idiotic Investment":
-            player.money -= 200;
-            player.pendingInvestment = { amount: 500, rounds: 2 };
+            if (player.money >= 200) {
+                player.money = Math.max(0, player.money - 200);
+                player.pendingInvestment = { amount: 500, rounds: 2 };
+            } else {
+                addLog(`❌ ${player.name} can't afford to invest (needs 200, has ${player.money})`);
+                return;
+            }
             addLog(`💼 ${player.name} invested 200! Will gain 500 in 2 rounds.`);
             addLog(`💰 ${player.name} money: ${oldPlayerMoney} → ${player.money}`);
             updateDisplay(); // Force immediate update
@@ -1427,7 +1477,8 @@ window.completeTaskCard = completeTaskCard;
 function updateDisplay() {
     // Save game state to localStorage for persistence
     try {
-        localStorage.setItem('gameState', JSON.stringify({
+        const username = getCurrentUsername();
+        localStorage.setItem(`gameState_${username}`, JSON.stringify({
             ...gameState,
             // Don't save functions or circular references
             players: gameState.players.map(p => ({
@@ -1435,8 +1486,8 @@ function updateDisplay() {
                 // Ensure all properties are serializable
             }))
         }));
-        localStorage.setItem('gamePhase', gameState.currentPhase);
-        localStorage.setItem('gameRound', gameState.round.toString());
+        localStorage.setItem(`gamePhase_${username}`, gameState.currentPhase);
+        localStorage.setItem(`gameRound_${username}`, gameState.round.toString());
     } catch (e) {
         console.warn('Could not save game state:', e);
     }
