@@ -104,38 +104,33 @@ function applyGameTheme(themeName) {
 
 // Clear all theme text modifications
 function clearThemeTextModifications() {
-    // Remove all theme-specific dataset attributes and restore original text
-    document.querySelectorAll('[data-poop-applied], [data-cookie-applied], [data-error-applied], [data-speed-applied]').forEach(el => {
-        // Restore original text if stored
-        if (el.dataset.originalText) {
-            el.textContent = el.dataset.originalText;
-            delete el.dataset.originalText;
-        } else {
-            // Fallback: try to remove theme-specific prefixes/suffixes
-            let text = el.textContent || '';
-            
-            // Remove poop emojis
-            if (el.dataset.poopApplied) {
-                text = text.replace(/^💩\s+/, '').replace(/\s+💩$/, '').replace(/\s+💩\s+/g, ' ');
-            }
-            
-            // Remove cookie emojis
-            if (el.dataset.cookieApplied) {
-                text = text.replace(/^🍪\s+/, '').replace(/\s+🍪$/, '').replace(/\s+🍪\s+/g, ' ');
-            }
-            
-            // Remove ERROR prefix/suffix
-            if (el.dataset.errorApplied) {
-                text = text.replace(/^ERROR:\s*/i, '').replace(/\s*ERROR$/i, '').replace(/\s*ERROR\s*/gi, ' ').trim();
-            }
-            
-            // Remove iShowSpeed emojis
-            if (el.dataset.speedApplied) {
-                text = text.replace(/^⚡\s+/, '').replace(/\s+⚡$/, '').replace(/\s+⚡\s+/g, ' ');
-            }
-            
-            el.textContent = text;
-        }
+    // Select ALL elements that might have theme modifications, not just those with data attributes
+    // This ensures we catch elements from previous themes that may have been reloaded
+    const allTextElements = document.querySelectorAll('h1, h2, h3, h4, button, .btn, .card, p, span, div');
+    
+    allTextElements.forEach(el => {
+        let text = el.textContent || '';
+        let originalText = el.dataset.originalText || text;
+        
+        // Aggressively remove ERROR prefix/suffix (case-insensitive)
+        originalText = originalText.replace(/^ERROR:\s*/gi, '').replace(/\s*ERROR$/gi, '').replace(/\s*ERROR\s*/gi, ' ').trim();
+        text = text.replace(/^ERROR:\s*/gi, '').replace(/\s*ERROR$/gi, '').replace(/\s*ERROR\s*/gi, ' ').trim();
+        
+        // Remove poop emojis
+        originalText = originalText.replace(/💩/g, '').trim();
+        text = text.replace(/💩/g, '').trim();
+        
+        // Remove cookie emojis
+        originalText = originalText.replace(/🍪/g, '').trim();
+        text = text.replace(/🍪/g, '').trim();
+        
+        // Remove iShowSpeed emojis
+        originalText = originalText.replace(/⚡/g, '').trim();
+        text = text.replace(/⚡/g, '').trim();
+        
+        // Store cleaned original text and restore it
+        el.dataset.originalText = originalText;
+        el.textContent = originalText;
         
         // Clear all theme dataset attributes
         delete el.dataset.poopApplied;
@@ -285,18 +280,24 @@ function applyThemeStyles(themeName) {
             `;
             // Apply ERROR text to all elements
             setTimeout(() => {
+                // First clear any existing ERROR text
                 document.querySelectorAll('h1, h2, h3, button, .btn, .card').forEach(el => {
-                    if (!el.dataset.errorApplied) {
-                        // Store original text if not already stored
-                        if (!el.dataset.originalText) {
-                            el.dataset.originalText = el.textContent;
-                        }
-                        el.dataset.errorApplied = 'true';
-                        const cleanText = el.dataset.originalText || el.textContent.replace(/ERROR:/gi, '').replace(/ERROR/gi, '').trim();
-                        el.textContent = 'ERROR: ' + cleanText + ' ERROR';
+                    let text = el.textContent || '';
+                    // Remove any existing ERROR prefixes/suffixes
+                    text = text.replace(/^ERROR:\s*/gi, '').replace(/\s*ERROR$/gi, '').replace(/\s*ERROR\s*/gi, ' ').trim();
+                    if (!el.dataset.originalText) {
+                        el.dataset.originalText = text;
                     }
                 });
-            }, 100);
+                // Then apply ERROR text
+                document.querySelectorAll('h1, h2, h3, button, .btn, .card').forEach(el => {
+                    if (!el.dataset.errorApplied) {
+                        const originalText = el.dataset.originalText || el.textContent.replace(/^ERROR:\s*/gi, '').replace(/\s*ERROR$/gi, '').trim();
+                        el.dataset.errorApplied = 'true';
+                        el.textContent = 'ERROR: ' + originalText + ' ERROR';
+                    }
+                });
+            }, 200);
             break;
         case 'ishowspeed':
             css = `
