@@ -104,11 +104,21 @@ function applyGameTheme(themeName) {
 
 // Clear all theme text modifications
 function clearThemeTextModifications() {
-    // Select ALL elements that might have theme modifications, not just those with data attributes
-    // This ensures we catch elements from previous themes that may have been reloaded
+    // Select elements that might have theme modifications, but EXCLUDE input fields and editable elements
+    // This ensures we don't interfere with user input
     const allTextElements = document.querySelectorAll('h1, h2, h3, h4, button, .btn, .card, p, span, div');
     
     allTextElements.forEach(el => {
+        // Skip input fields, textareas, and other editable elements
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.contentEditable === 'true') {
+            return;
+        }
+        
+        // Skip if element is inside an input/textarea
+        if (el.closest('input, textarea, [contenteditable="true"]')) {
+            return;
+        }
+        
         let text = el.textContent || '';
         let originalText = el.dataset.originalText || text;
         
