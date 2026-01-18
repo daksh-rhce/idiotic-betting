@@ -104,11 +104,13 @@ function applyGameTheme(themeName) {
 
 // Clear all theme text modifications
 function clearThemeTextModifications() {
-    // Select elements that might have theme modifications, but EXCLUDE input fields and editable elements
-    // This ensures we don't interfere with user input
-    const allTextElements = document.querySelectorAll('h1, h2, h3, h4, button, .btn, .card, p, span, div');
+    // Select elements that might have theme modifications, but EXCLUDE elements that contain inputs
+    // This ensures we don't interfere with user input by setting textContent (which removes child elements)
+    const allTextElements = document.querySelectorAll('h1, h2, h3, h4, button, .btn, .card, p, span');
+    // Only process divs if they don't contain input fields
+    const divs = document.querySelectorAll('div');
     
-    allTextElements.forEach(el => {
+    const processElement = (el) => {
         // Skip input fields, textareas, and other editable elements
         if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.contentEditable === 'true') {
             return;
@@ -116,6 +118,11 @@ function clearThemeTextModifications() {
         
         // Skip if element is inside an input/textarea
         if (el.closest('input, textarea, [contenteditable="true"]')) {
+            return;
+        }
+        
+        // Skip if element contains input fields (setting textContent would destroy them)
+        if (el.querySelector('input, textarea, [contenteditable="true"]')) {
             return;
         }
         
@@ -147,7 +154,13 @@ function clearThemeTextModifications() {
         delete el.dataset.cookieApplied;
         delete el.dataset.errorApplied;
         delete el.dataset.speedApplied;
-    });
+    };
+    
+    // Process headings, buttons, paragraphs, spans
+    allTextElements.forEach(processElement);
+    
+    // Process divs that don't contain inputs
+    divs.forEach(processElement);
 }
 
 // Apply theme-specific CSS
