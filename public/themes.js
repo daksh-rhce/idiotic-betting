@@ -102,15 +102,12 @@ function applyGameTheme(themeName) {
     applyThemeStyles(themeName);
 }
 
-// Clear all theme text modifications
+// Clear all theme text modifications (optimized to prevent lag)
 function clearThemeTextModifications() {
-    // Select elements that might have theme modifications, but EXCLUDE elements that contain inputs
-    // This ensures we don't interfere with user input by setting textContent (which removes child elements)
-    const allTextElements = document.querySelectorAll('h1, h2, h3, h4, button, .btn, .card, p, span');
-    // Only process divs if they don't contain input fields
-    const divs = document.querySelectorAll('div');
+    // Only process elements that have theme modifications applied (much faster)
+    const modifiedElements = document.querySelectorAll('[data-poop-applied], [data-cookie-applied], [data-error-applied], [data-speed-applied]');
     
-    const processElement = (el) => {
+    modifiedElements.forEach(el => {
         // Skip input fields, textareas, and other editable elements
         if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable || el.contentEditable === 'true') {
             return;
@@ -126,41 +123,24 @@ function clearThemeTextModifications() {
             return;
         }
         
-        let text = el.textContent || '';
-        let originalText = el.dataset.originalText || text;
-        
-        // Aggressively remove ERROR prefix/suffix (case-insensitive)
-        originalText = originalText.replace(/^ERROR:\s*/gi, '').replace(/\s*ERROR$/gi, '').replace(/\s*ERROR\s*/gi, ' ').trim();
-        text = text.replace(/^ERROR:\s*/gi, '').replace(/\s*ERROR$/gi, '').replace(/\s*ERROR\s*/gi, ' ').trim();
-        
-        // Remove poop emojis
-        originalText = originalText.replace(/💩/g, '').trim();
-        text = text.replace(/💩/g, '').trim();
-        
-        // Remove cookie emojis
-        originalText = originalText.replace(/🍪/g, '').trim();
-        text = text.replace(/🍪/g, '').trim();
-        
-        // Remove iShowSpeed emojis
-        originalText = originalText.replace(/⚡/g, '').trim();
-        text = text.replace(/⚡/g, '').trim();
-        
-        // Store cleaned original text and restore it
-        el.dataset.originalText = originalText;
-        el.textContent = originalText;
+        // Restore original text if stored
+        if (el.dataset.originalText) {
+            el.textContent = el.dataset.originalText;
+            delete el.dataset.originalText;
+        } else {
+            // Fallback: clean the text
+            let text = el.textContent || '';
+            text = text.replace(/^ERROR:\s*/gi, '').replace(/\s*ERROR$/gi, '').replace(/\s*ERROR\s*/gi, ' ').trim();
+            text = text.replace(/💩/g, '').replace(/🍪/g, '').replace(/⚡/g, '').trim();
+            el.textContent = text;
+        }
         
         // Clear all theme dataset attributes
         delete el.dataset.poopApplied;
         delete el.dataset.cookieApplied;
         delete el.dataset.errorApplied;
         delete el.dataset.speedApplied;
-    };
-    
-    // Process headings, buttons, paragraphs, spans
-    allTextElements.forEach(processElement);
-    
-    // Process divs that don't contain inputs
-    divs.forEach(processElement);
+    });
 }
 
 // Apply theme-specific CSS

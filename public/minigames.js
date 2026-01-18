@@ -2506,7 +2506,7 @@ function initPacManGame() {
                 <canvas id="pacman-canvas" style="border: 3px solid #FF0000; background: #000; cursor: pointer;"></canvas>
             </div>
             <div id="pacman-info" style="color: #FFD700; font-weight: bold; font-size: 1.1em; margin: 10px 0;">
-                Score: <span id="pacman-score">0</span> | Money: <span id="pacman-money">0</span> | Lives: <span id="pacman-lives">3</span>
+                Score: <span id="pacman-score">0</span> | Charge: <span id="pacman-charge">0</span> | Lives: <span id="pacman-lives">3</span> | Level: <span id="pacman-level">1</span>
             </div>
             <button class="btn btn-large" onclick="startPacManGame()">Start Game</button>
             <div id="pacman-result"></div>
